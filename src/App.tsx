@@ -21,6 +21,7 @@ import JsBarcode from "jsbarcode";
 import QRCode from "qrcode";
 import { api } from "../convex/_generated/api";
 import type { Doc, Id } from "../convex/_generated/dataModel";
+import type { DragEvent } from "react";
 
 type Pass = Doc<"passes">;
 type CodeType = "qr" | "barcode";
@@ -175,6 +176,7 @@ function VaultApp() {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [decodeState, setDecodeState] = useState<"idle" | "decoding" | "success" | "error">("idle");
   const [decodeMessage, setDecodeMessage] = useState("");
+  const [isDragActive, setIsDragActive] = useState(false);
 
   const passList = passes ?? [];
   const filteredPasses = useMemo(() => {
@@ -226,7 +228,11 @@ function VaultApp() {
   async function handleFile(file: File | null) {
     if (!file) return;
     setDecodeState("decoding");
-    setDecodeMessage("Reading the code in your browser...");
+    setDecodeMessage(
+      isHeicImage(file)
+        ? "Converting HEIC locally, then reading the code..."
+        : "Reading the code in your browser...",
+    );
     try {
       const result = await decodeBarcodeFromImage(file);
       setDraft((current) => ({
@@ -237,13 +243,33 @@ function VaultApp() {
         title: current.title || file.name.replace(/\.[^.]+$/, ""),
       }));
       setDecodeState("success");
-      setDecodeMessage("Decoded. The image was not uploaded or stored.");
+      setDecodeMessage(
+        isHeicImage(file)
+          ? "Converted and decoded locally. The image was not uploaded or stored."
+          : "Decoded. The image was not uploaded or stored.",
+      );
     } catch (err) {
       setDecodeState("error");
       setDecodeMessage(
         err instanceof Error
           ? err.message
           : "Could not read that screenshot. Paste the payload manually.",
+      );
+    }
+  }
+
+  async function handleDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDragActive(false);
+    try {
+      const file = await getDroppedImageFile(event.dataTransfer);
+      await handleFile(file);
+    } catch (err) {
+      setDecodeState("error");
+      setDecodeMessage(
+        err instanceof Error
+          ? err.message
+          : "Drop an image file or paste the payload manually.",
       );
     }
   }
@@ -300,18 +326,44 @@ function VaultApp() {
             <ImageUp size={18} />
             <div>
               <h2>Add pass</h2>
-              <p>Upload a screenshot to decode it locally, or paste the payload.</p>
+              <p>Drop an iPhone screenshot here, choose a file, or paste the payload.</p>
             </div>
           </div>
           <form className="pass-form" onSubmit={handleCreate}>
-            <label className="upload-target">
+            <label
+              className={`upload-target ${isDragActive ? "drag-active" : ""}`}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                setIsDragActive(true);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "copy";
+                setIsDragActive(true);
+              }}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                const nextTarget = event.relatedTarget;
+                if (
+                  !(nextTarget instanceof Node) ||
+                  !event.currentTarget.contains(nextTarget)
+                ) {
+                  setIsDragActive(false);
+                }
+              }}
+              onDrop={(event) => void handleDrop(event)}
+            >
               <input
                 type="file"
-                accept="image/*"
-                onChange={(event) => void handleFile(event.target.files?.[0] ?? null)}
+                accept="image/*,.heic,.heif,image/heic,image/heif"
+                onChange={(event) => {
+                  void handleFile(event.target.files?.[0] ?? null);
+                  event.currentTarget.value = "";
+                }}
               />
               <ImageUp size={20} />
-              <span>Choose screenshot</span>
+              <span>{isDragActive ? "Drop screenshot" : "Drop or choose screenshot"}</span>
+              <small>Supports PNG, JPG, HEIC, and HEIF. Nothing is uploaded.</small>
             </label>
             <div className="field-grid">
               <label>
@@ -552,7 +604,8 @@ async function decodeBarcodeFromImage(file: File): Promise<{
     ],
   });
 
-  const image = await loadImage(file);
+  const imageFile = await normalizeImageFile(file);
+  const image = await loadImage(imageFile);
   const results = await detector.detect(image);
   if (!results.length || !results[0].rawValue) {
     throw new Error("No QR or barcode was found. Try a clearer screenshot or paste the value.");
@@ -566,7 +619,7 @@ async function decodeBarcodeFromImage(file: File): Promise<{
   };
 }
 
-function loadImage(file: File) {
+function loadImage(file: File | Blob) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
@@ -580,4 +633,103 @@ function loadImage(file: File) {
     };
     image.src = url;
   });
+}
+
+async function normalizeImageFile(file: File): Promise<File | Blob> {
+  if (!isHeicImage(file)) {
+    return file;
+  }
+
+  try {
+    const { default: heic2any } = await import("heic2any");
+    const converted = await heic2any({
+      blob: file,
+      toType: "image/jpeg",
+      quality: 0.96,
+    });
+    const blob = Array.isArray(converted) ? converted[0] : converted;
+    if (!blob) {
+      throw new Error("HEIC conversion returned no image.");
+    }
+    return blob;
+  } catch {
+    throw new Error(
+      "Could not convert that HEIC/HEIF image in this browser. Try exporting it as JPEG/PNG, or paste the code payload manually.",
+    );
+  }
+}
+
+function isHeicImage(file: File | Blob) {
+  const type = file.type.toLowerCase();
+  const name = "name" in file ? file.name.toLowerCase() : "";
+  return (
+    type === "image/heic" ||
+    type === "image/heif" ||
+    name.endsWith(".heic") ||
+    name.endsWith(".heif")
+  );
+}
+
+async function getDroppedImageFile(dataTransfer: DataTransfer): Promise<File> {
+  const droppedFile = firstImageFile(dataTransfer.files);
+  if (droppedFile) {
+    return droppedFile;
+  }
+
+  for (const item of Array.from(dataTransfer.items)) {
+    if (item.kind !== "file") continue;
+    const file = item.getAsFile();
+    if (file && isSupportedImageLike(file)) {
+      return file;
+    }
+  }
+
+  const droppedUrl =
+    dataTransfer.getData("text/uri-list").split("\n").find((line) => line && !line.startsWith("#")) ||
+    dataTransfer.getData("text/plain");
+
+  if (droppedUrl && /^https?:\/\//i.test(droppedUrl)) {
+    try {
+      const response = await fetch(droppedUrl);
+      const blob = await response.blob();
+      if (isSupportedImageLike(blob)) {
+        return new File([blob], filenameFromUrl(droppedUrl, blob.type), {
+          type: blob.type,
+        });
+      }
+    } catch {
+      throw new Error("That dropped image URL could not be read by the browser.");
+    }
+  }
+
+  throw new Error("Drop a PNG, JPG, HEIC, or HEIF screenshot.");
+}
+
+function firstImageFile(files: FileList) {
+  return Array.from(files).find(isSupportedImageLike) ?? null;
+}
+
+function isSupportedImageLike(file: File | Blob) {
+  const type = file.type.toLowerCase();
+  const name = "name" in file ? file.name.toLowerCase() : "";
+  return (
+    type.startsWith("image/") ||
+    name.endsWith(".heic") ||
+    name.endsWith(".heif") ||
+    name.endsWith(".jpg") ||
+    name.endsWith(".jpeg") ||
+    name.endsWith(".png") ||
+    name.endsWith(".webp")
+  );
+}
+
+function filenameFromUrl(url: string, fallbackType: string) {
+  try {
+    const pathname = new URL(url).pathname;
+    const name = pathname.split("/").filter(Boolean).at(-1);
+    if (name) return name;
+  } catch {
+    // Fall through to a MIME-based fallback.
+  }
+  return fallbackType.includes("png") ? "dropped-image.png" : "dropped-image.jpg";
 }
