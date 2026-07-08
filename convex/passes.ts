@@ -1,0 +1,121 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+
+const maxPayloadLength = 20_000;
+
+async function requireUserId(ctx: Parameters<typeof getAuthUserId>[0]) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("Not authenticated");
+  }
+  return userId;
+}
+
+function assertPayloadSize(value: string) {
+  if (value.length > maxPayloadLength) {
+    throw new Error("This code payload is too large to store lightweightly.");
+  }
+}
+
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx);
+    return await ctx.db
+      .query("passes")
+      .withIndex("by_owner_updated", (q) => q.eq("ownerId", userId))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const create = mutation({
+  args: {
+    title: v.string(),
+    issuer: v.optional(v.string()),
+    codeType: v.union(v.literal("qr"), v.literal("barcode")),
+    format: v.optional(v.string()),
+    encodedValue: v.string(),
+    eventDate: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    color: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const now = Date.now();
+    assertPayloadSize(args.encodedValue);
+
+    return await ctx.db.insert("passes", {
+      ownerId: userId,
+      title: args.title.trim() || "Untitled pass",
+      issuer: args.issuer?.trim() || undefined,
+      codeType: args.codeType,
+      format: args.format?.trim() || undefined,
+      encodedValue: args.encodedValue,
+      eventDate: args.eventDate || undefined,
+      notes: args.notes?.trim() || undefined,
+      color: args.color,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const update = mutation({
+  args: {
+    id: v.id("passes"),
+    title: v.string(),
+    issuer: v.optional(v.string()),
+    codeType: v.union(v.literal("qr"), v.literal("barcode")),
+    format: v.optional(v.string()),
+    encodedValue: v.string(),
+    eventDate: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    color: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const existing = await ctx.db.get(args.id);
+    if (!existing || existing.ownerId !== userId) {
+      throw new Error("Pass not found");
+    }
+    assertPayloadSize(args.encodedValue);
+
+    await ctx.db.patch(args.id, {
+      title: args.title.trim() || "Untitled pass",
+      issuer: args.issuer?.trim() || undefined,
+      codeType: args.codeType,
+      format: args.format?.trim() || undefined,
+      encodedValue: args.encodedValue,
+      eventDate: args.eventDate || undefined,
+      notes: args.notes?.trim() || undefined,
+      color: args.color,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const remove = mutation({
+  args: { id: v.id("passes") },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const existing = await ctx.db.get(args.id);
+    if (!existing || existing.ownerId !== userId) {
+      throw new Error("Pass not found");
+    }
+    await ctx.db.delete(args.id);
+  },
+});
+
+export const markOpened = mutation({
+  args: { id: v.id("passes") },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const existing = await ctx.db.get(args.id);
+    if (!existing || existing.ownerId !== userId) {
+      return;
+    }
+    await ctx.db.patch(args.id, { lastOpenedAt: Date.now() });
+  },
+});
