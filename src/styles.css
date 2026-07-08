@@ -575,7 +575,7 @@ select:focus {
 }
 
 .code-frame {
-  min-height: 320px;
+  min-height: 350px;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -586,19 +586,81 @@ select:focus {
     #fff;
 }
 
-.code-frame canvas {
+.code-frame > canvas {
   width: 280px;
   height: 280px;
 }
 
-.matrix-qr-code {
-  display: block;
-  width: min(100%, 320px);
-  height: auto;
-  aspect-ratio: 1;
+.qr-tree-code {
+  width: 100%;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.qr-mode-toggle {
+  justify-self: end;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.qr-mode-toggle button {
+  min-height: 32px;
+  border: 0;
   border-radius: 6px;
-  background: #fff;
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  background: transparent;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.qr-mode-toggle button.active {
+  background: #0f172a;
+  color: #fff;
+}
+
+.qr-artboard {
+  width: min(100%, 360px);
+  border: 0;
+  outline: none;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: inherit;
+}
+
+.qr-artboard:focus-visible .qr-tree-stage {
+  box-shadow:
+    0 0 0 3px rgba(15, 118, 110, 0.2),
+    0 14px 34px rgba(15, 23, 42, 0.13);
+}
+
+.qr-tree-stage {
+  display: block;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 8px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.13);
+  width: 100%;
+  aspect-ratio: 360 / 310;
+  background: #f8f6ef;
+}
+
+.qr-tree-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .code-frame .barcode-svg {
@@ -609,7 +671,7 @@ select:focus {
 
 .meta-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   gap: 10px;
   margin: 0;
 }
@@ -634,6 +696,14 @@ select:focus {
   overflow-wrap: anywhere;
   font-size: 13px;
   font-weight: 750;
+}
+
+.meta-list a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent-strong);
+  text-decoration: none;
 }
 
 .payload-box {

@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
 const maxPayloadLength = 20_000;
+const maxLaunchUrlLength = 2_000;
 const maxVisualMatrixLength = 40_000;
 
 async function requireUserId(ctx: Parameters<typeof getAuthUserId>[0]) {
@@ -16,6 +17,26 @@ async function requireUserId(ctx: Parameters<typeof getAuthUserId>[0]) {
 function assertPayloadSize(value: string) {
   if (value.length > maxPayloadLength) {
     throw new Error("This code payload is too large to store lightweightly.");
+  }
+}
+
+function normalizeLaunchUrl(value: string | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (trimmed.length > maxLaunchUrlLength) {
+    throw new Error("This scan URL is too long.");
+  }
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error("Scan URLs must start with http:// or https://.");
+    }
+    return url.toString();
+  } catch {
+    throw new Error("Scan URL must be a valid http:// or https:// URL.");
   }
 }
 
@@ -56,6 +77,7 @@ export const create = mutation({
     codeType: v.union(v.literal("qr"), v.literal("barcode")),
     format: v.optional(v.string()),
     encodedValue: v.string(),
+    launchUrl: v.optional(v.string()),
     visualMatrix: v.optional(v.string()),
     visualSize: v.optional(v.number()),
     eventDate: v.optional(v.string()),
@@ -67,6 +89,7 @@ export const create = mutation({
     const now = Date.now();
     assertPayloadSize(args.encodedValue);
     assertVisualMatrix(args.visualMatrix, args.visualSize);
+    const launchUrl = normalizeLaunchUrl(args.launchUrl);
 
     return await ctx.db.insert("passes", {
       ownerId: userId,
@@ -75,6 +98,7 @@ export const create = mutation({
       codeType: args.codeType,
       format: args.format?.trim() || undefined,
       encodedValue: args.encodedValue,
+      launchUrl,
       visualMatrix: args.visualMatrix,
       visualSize: args.visualSize,
       eventDate: args.eventDate || undefined,
@@ -94,6 +118,7 @@ export const update = mutation({
     codeType: v.union(v.literal("qr"), v.literal("barcode")),
     format: v.optional(v.string()),
     encodedValue: v.string(),
+    launchUrl: v.optional(v.string()),
     visualMatrix: v.optional(v.string()),
     visualSize: v.optional(v.number()),
     eventDate: v.optional(v.string()),
@@ -108,6 +133,7 @@ export const update = mutation({
     }
     assertPayloadSize(args.encodedValue);
     assertVisualMatrix(args.visualMatrix, args.visualSize);
+    const launchUrl = normalizeLaunchUrl(args.launchUrl);
 
     await ctx.db.patch(args.id, {
       title: args.title.trim() || "Untitled pass",
@@ -115,6 +141,7 @@ export const update = mutation({
       codeType: args.codeType,
       format: args.format?.trim() || undefined,
       encodedValue: args.encodedValue,
+      launchUrl,
       visualMatrix: args.visualMatrix,
       visualSize: args.visualSize,
       eventDate: args.eventDate || undefined,

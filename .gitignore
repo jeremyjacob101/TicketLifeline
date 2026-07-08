@@ -5,3 +5,5 @@ dist
 .env.*.local
 convex/_generated
 convex/tsconfig.tsbuildinfo
+
+.DS_Store
