@@ -27,6 +27,8 @@ export default defineSchema({
     codeType: v.union(v.literal("qr"), v.literal("barcode")),
     format: v.optional(v.string()),
     encodedValue: v.string(),
+    visualMatrix: v.optional(v.string()),
+    visualSize: v.optional(v.number()),
     eventDate: v.optional(v.string()),
     notes: v.optional(v.string()),
     color: v.optional(v.string()),

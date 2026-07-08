@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
 const maxPayloadLength = 20_000;
+const maxVisualMatrixLength = 40_000;
 
 async function requireUserId(ctx: Parameters<typeof getAuthUserId>[0]) {
   const userId = await getAuthUserId(ctx);
@@ -15,6 +16,24 @@ async function requireUserId(ctx: Parameters<typeof getAuthUserId>[0]) {
 function assertPayloadSize(value: string) {
   if (value.length > maxPayloadLength) {
     throw new Error("This code payload is too large to store lightweightly.");
+  }
+}
+
+function assertVisualMatrix(value: string | undefined, size: number | undefined) {
+  if (!value && size === undefined) {
+    return;
+  }
+  if (!value || size === undefined) {
+    throw new Error("QR matrix data is incomplete.");
+  }
+  if (!Number.isInteger(size) || size < 21 || size > 177 || (size - 17) % 4 !== 0) {
+    throw new Error("QR matrix size is invalid.");
+  }
+  if (value.length !== size * size || value.length > maxVisualMatrixLength) {
+    throw new Error("This QR matrix is too large to store lightweightly.");
+  }
+  if (!/^[01]+$/.test(value)) {
+    throw new Error("QR matrix data is invalid.");
   }
 }
 
@@ -37,6 +56,8 @@ export const create = mutation({
     codeType: v.union(v.literal("qr"), v.literal("barcode")),
     format: v.optional(v.string()),
     encodedValue: v.string(),
+    visualMatrix: v.optional(v.string()),
+    visualSize: v.optional(v.number()),
     eventDate: v.optional(v.string()),
     notes: v.optional(v.string()),
     color: v.optional(v.string()),
@@ -45,6 +66,7 @@ export const create = mutation({
     const userId = await requireUserId(ctx);
     const now = Date.now();
     assertPayloadSize(args.encodedValue);
+    assertVisualMatrix(args.visualMatrix, args.visualSize);
 
     return await ctx.db.insert("passes", {
       ownerId: userId,
@@ -53,6 +75,8 @@ export const create = mutation({
       codeType: args.codeType,
       format: args.format?.trim() || undefined,
       encodedValue: args.encodedValue,
+      visualMatrix: args.visualMatrix,
+      visualSize: args.visualSize,
       eventDate: args.eventDate || undefined,
       notes: args.notes?.trim() || undefined,
       color: args.color,
@@ -70,6 +94,8 @@ export const update = mutation({
     codeType: v.union(v.literal("qr"), v.literal("barcode")),
     format: v.optional(v.string()),
     encodedValue: v.string(),
+    visualMatrix: v.optional(v.string()),
+    visualSize: v.optional(v.number()),
     eventDate: v.optional(v.string()),
     notes: v.optional(v.string()),
     color: v.optional(v.string()),
@@ -81,6 +107,7 @@ export const update = mutation({
       throw new Error("Pass not found");
     }
     assertPayloadSize(args.encodedValue);
+    assertVisualMatrix(args.visualMatrix, args.visualSize);
 
     await ctx.db.patch(args.id, {
       title: args.title.trim() || "Untitled pass",
@@ -88,6 +115,8 @@ export const update = mutation({
       codeType: args.codeType,
       format: args.format?.trim() || undefined,
       encodedValue: args.encodedValue,
+      visualMatrix: args.visualMatrix,
+      visualSize: args.visualSize,
       eventDate: args.eventDate || undefined,
       notes: args.notes?.trim() || undefined,
       color: args.color,

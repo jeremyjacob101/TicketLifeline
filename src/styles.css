@@ -591,7 +591,17 @@ select:focus {
   height: 280px;
 }
 
-.code-frame svg {
+.matrix-qr-code {
+  display: block;
+  width: min(100%, 320px);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+}
+
+.code-frame .barcode-svg {
   width: 100%;
   max-width: 320px;
   height: 150px;

@@ -25,12 +25,22 @@ import type { DragEvent } from "react";
 
 type Pass = Doc<"passes">;
 type CodeType = "qr" | "barcode";
+type DetectionSource = HTMLImageElement | HTMLCanvasElement;
+type BarcodeDetectorInstance = InstanceType<Window["BarcodeDetector"]>;
+type BarcodeDetectionResult = Awaited<ReturnType<BarcodeDetectorInstance["detect"]>>[number];
+type MatrixMatch = {
+  matrix: string;
+  size: number;
+  score: number;
+};
 type Draft = {
   title: string;
   issuer: string;
   codeType: CodeType;
   format: string;
   encodedValue: string;
+  visualMatrix: string;
+  visualSize: number | undefined;
   eventDate: string;
   notes: string;
   color: string;
@@ -43,6 +53,8 @@ const emptyDraft: Draft = {
   codeType: "qr",
   format: "QR_CODE",
   encodedValue: "",
+  visualMatrix: "",
+  visualSize: undefined,
   eventDate: "",
   notes: "",
   color: accentColors[0],
@@ -106,11 +118,11 @@ function AuthScreen() {
         <h1>Your QR and barcode safety net.</h1>
         <p>
           Save the encoded value behind tickets, coupons, passes, and backup
-          codes. No screenshot storage required.
+          codes. No full screenshot storage required.
         </p>
         <div className="assurance-row">
           <ShieldCheck size={18} />
-          <span>Per-user vault with lightweight Convex records.</span>
+          <span>Per-user vault with compact scan-ready QR patterns.</span>
         </div>
       </section>
 
@@ -215,6 +227,8 @@ function VaultApp() {
       codeType: draft.codeType,
       format: draft.format || undefined,
       encodedValue: draft.encodedValue.trim(),
+      visualMatrix: draft.visualMatrix || undefined,
+      visualSize: draft.visualSize,
       eventDate: draft.eventDate || undefined,
       notes: draft.notes || undefined,
       color: draft.color,
@@ -222,7 +236,7 @@ function VaultApp() {
     setDraft({ ...emptyDraft, color: draft.color });
     setSelectedId(id);
     setDecodeState("success");
-    setDecodeMessage("Saved as a lightweight code payload.");
+    setDecodeMessage("Saved the payload and compact digital QR pattern.");
   }
 
   async function handleFile(file: File | null) {
@@ -240,20 +254,26 @@ function VaultApp() {
         codeType: result.codeType,
         format: result.format,
         encodedValue: result.rawValue,
+        visualMatrix: result.visualMatrix,
+        visualSize: result.visualSize,
         title: current.title || file.name.replace(/\.[^.]+$/, ""),
       }));
       setDecodeState("success");
       setDecodeMessage(
         isHeicImage(file)
-          ? "Converted and decoded locally. The image was not uploaded or stored."
-          : "Decoded. The image was not uploaded or stored.",
+          ? result.visualMatrix
+            ? "Converted locally and matched the photographed QR pattern."
+            : "Converted locally. Saved a clean generated code from the payload."
+          : result.visualMatrix
+            ? "Decoded locally and matched the photographed QR pattern."
+            : "Decoded locally. Saved a clean generated code from the payload.",
       );
     } catch (err) {
       setDecodeState("error");
       setDecodeMessage(
         err instanceof Error
           ? err.message
-          : "Could not read that screenshot. Paste the payload manually.",
+          : "Could not read that image. Paste the payload manually.",
       );
     }
   }
@@ -296,7 +316,7 @@ function VaultApp() {
         <div className="rail-footer">
           <div>
             <p>Emergency copy</p>
-            <span>Codes regenerate on any device.</span>
+            <span>Stored QR patterns open on any device.</span>
           </div>
           <button type="button" className="icon-button" onClick={() => void signOut()}>
             <LogOut size={17} />
@@ -326,7 +346,7 @@ function VaultApp() {
             <ImageUp size={18} />
             <div>
               <h2>Add pass</h2>
-              <p>Drop an iPhone screenshot here, choose a file, or paste the payload.</p>
+              <p>Drop an iPhone photo here, choose a file, or paste the payload.</p>
             </div>
           </div>
           <form className="pass-form" onSubmit={handleCreate}>
@@ -362,8 +382,8 @@ function VaultApp() {
                 }}
               />
               <ImageUp size={20} />
-              <span>{isDragActive ? "Drop screenshot" : "Drop or choose screenshot"}</span>
-              <small>Supports PNG, JPG, HEIC, and HEIF. Nothing is uploaded.</small>
+              <span>{isDragActive ? "Drop image" : "Drop or choose image"}</span>
+              <small>Supports PNG, JPG, HEIC, and HEIF. Stores a tiny digital QR matrix.</small>
             </label>
             <div className="field-grid">
               <label>
@@ -427,7 +447,7 @@ function VaultApp() {
             <div className="form-footer">
               <div className={`decode-status ${decodeState}`}>
                 {decodeState === "success" ? <Check size={15} /> : <AlertCircle size={15} />}
-                <span>{decodeMessage || "Screenshots are decoded locally, then discarded."}</span>
+                <span>{decodeMessage || "Photos are decoded locally; only a compact QR pattern is saved."}</span>
               </div>
               <button type="submit" className="primary-button">
                 <Plus size={16} />
@@ -567,13 +587,45 @@ function CodeRender({ pass }: { pass: Pass }) {
 
   return (
     <div className="code-frame">
-      {pass.codeType === "qr" ? (
+      {pass.visualMatrix && pass.visualSize ? (
+        <MatrixQrCode matrix={pass.visualMatrix} size={pass.visualSize} />
+      ) : pass.codeType === "qr" ? (
         <canvas ref={canvasRef} aria-label="Regenerated QR code" />
       ) : (
-        <svg ref={svgRef} aria-label="Regenerated barcode" />
+        <svg ref={svgRef} className="barcode-svg" aria-label="Regenerated barcode" />
       )}
       {renderError ? <p className="form-error">{renderError}</p> : null}
     </div>
+  );
+}
+
+function MatrixQrCode({ matrix, size }: { matrix: string; size: number }) {
+  const cell = 4;
+  const quiet = 4;
+  const viewSize = (size + quiet * 2) * cell;
+  const paths: string[] = [];
+
+  for (let row = 0; row < size; row++) {
+    for (let col = 0; col < size; col++) {
+      if (matrix[row * size + col] === "1") {
+        paths.push(
+          `M${(col + quiet) * cell},${(row + quiet) * cell}h${cell}v${cell}h-${cell}z`,
+        );
+      }
+    }
+  }
+
+  return (
+    <svg
+      className="matrix-qr-code"
+      viewBox={`0 0 ${viewSize} ${viewSize}`}
+      role="img"
+      aria-label="Matched digital QR code"
+      shapeRendering="crispEdges"
+    >
+      <rect width={viewSize} height={viewSize} fill="#fff" />
+      <path d={paths.join("")} fill="#111827" />
+    </svg>
   );
 }
 
@@ -581,9 +633,11 @@ async function decodeBarcodeFromImage(file: File): Promise<{
   rawValue: string;
   format: string;
   codeType: CodeType;
+  visualMatrix: string;
+  visualSize: number | undefined;
 }> {
   if (!("BarcodeDetector" in window)) {
-    throw new Error("This browser cannot decode screenshots yet. Paste the payload manually.");
+    throw new Error("This browser cannot decode images yet. Paste the payload manually.");
   }
 
   const detector = new window.BarcodeDetector({
@@ -606,17 +660,40 @@ async function decodeBarcodeFromImage(file: File): Promise<{
 
   const imageFile = await normalizeImageFile(file);
   const image = await loadImage(imageFile);
-  const results = await detector.detect(image);
-  if (!results.length || !results[0].rawValue) {
-    throw new Error("No QR or barcode was found. Try a clearer screenshot or paste the value.");
+  const { result, source } = await detectAcrossOrientations(detector, image);
+  if (!result?.rawValue) {
+    throw new Error("No QR or barcode was found. Try a clearer image or paste the value.");
   }
 
-  const format = results[0].format.toUpperCase();
+  const format = result.format.toUpperCase();
+  const matrixMatch =
+    result.format === "qr_code"
+      ? findMatchingQrMatrix(source, result, result.rawValue)
+      : null;
+
   return {
-    rawValue: results[0].rawValue,
+    rawValue: result.rawValue,
     format,
-    codeType: results[0].format === "qr_code" ? "qr" : "barcode",
+    codeType: result.format === "qr_code" ? "qr" : "barcode",
+    visualMatrix: matrixMatch?.matrix ?? "",
+    visualSize: matrixMatch?.size,
   };
+}
+
+async function detectAcrossOrientations(
+  detector: BarcodeDetectorInstance,
+  image: HTMLImageElement,
+) {
+  const sources = createDetectionSources(image);
+  for (const source of sources) {
+    const results = await detector.detect(source);
+    const result = results[0];
+    if (result?.rawValue) {
+      return { result, source };
+    }
+  }
+
+  throw new Error("No QR or barcode was found. Try a clearer image or paste the value.");
 }
 
 function loadImage(file: File | Blob) {
@@ -633,6 +710,291 @@ function loadImage(file: File | Blob) {
     };
     image.src = url;
   });
+}
+
+function createDetectionSources(image: HTMLImageElement) {
+  const base = scaleImageToCanvas(image, 2200);
+  return [base, rotateCanvas(base, 90), rotateCanvas(base, 180), rotateCanvas(base, 270)];
+}
+
+function scaleImageToCanvas(image: HTMLImageElement, maxLongEdge: number) {
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
+  const scale = Math.min(1, maxLongEdge / Math.max(width, height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Could not prepare image for scanning.");
+  }
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+function rotateCanvas(source: HTMLCanvasElement, degrees: 90 | 180 | 270) {
+  const canvas = document.createElement("canvas");
+  const quarterTurn = degrees === 90 || degrees === 270;
+  canvas.width = quarterTurn ? source.height : source.width;
+  canvas.height = quarterTurn ? source.width : source.height;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Could not rotate image for scanning.");
+  }
+  context.translate(canvas.width / 2, canvas.height / 2);
+  context.rotate((degrees * Math.PI) / 180);
+  context.drawImage(source, -source.width / 2, -source.height / 2);
+  return canvas;
+}
+
+function getSourceWidth(source: DetectionSource) {
+  return source instanceof HTMLImageElement
+    ? source.naturalWidth || source.width
+    : source.width;
+}
+
+function getSourceHeight(source: DetectionSource) {
+  return source instanceof HTMLImageElement
+    ? source.naturalHeight || source.height
+    : source.height;
+}
+
+function findMatchingQrMatrix(
+  source: DetectionSource,
+  result: BarcodeDetectionResult,
+  payload: string,
+): MatrixMatch | null {
+  const candidates = createQrCandidates(payload);
+  if (!candidates.length) {
+    return null;
+  }
+
+  const imageData = sourceToImageData(source);
+  const sampledBySize = new Map<number, { matrix: string; confidence: number }>();
+  let best: MatrixMatch | null = null;
+
+  for (const candidate of candidates) {
+    let sampled = sampledBySize.get(candidate.size);
+    if (!sampled) {
+      sampled = sampleDetectedQrMatrix(imageData, result, candidate.size);
+      sampledBySize.set(candidate.size, sampled);
+    }
+    const score = scoreMatrix(candidate.matrix, sampled.matrix, sampled.confidence);
+    if (!best || score > best.score) {
+      best = { ...candidate, score };
+    }
+  }
+
+  return best && best.score >= 0.72 ? best : null;
+}
+
+function createQrCandidates(payload: string) {
+  const levels = ["L", "M", "Q", "H"] as const;
+  const candidates = new Map<string, MatrixMatch>();
+
+  for (const errorCorrectionLevel of levels) {
+    let baseVersion: number | null = null;
+    try {
+      baseVersion = QRCode.create(payload, { errorCorrectionLevel }).version;
+    } catch {
+      continue;
+    }
+
+    for (let version = baseVersion; version <= Math.min(40, baseVersion + 8); version++) {
+      for (const maskPattern of [0, 1, 2, 3, 4, 5, 6, 7] as const) {
+        try {
+          const qr = QRCode.create(payload, {
+            errorCorrectionLevel,
+            maskPattern,
+            version,
+          });
+          const matrix = matrixToString(qr.modules.data);
+          candidates.set(`${qr.modules.size}:${matrix}`, {
+            matrix,
+            size: qr.modules.size,
+            score: 0,
+          });
+        } catch {
+          // Some version/error-correction combinations cannot fit the payload.
+        }
+      }
+    }
+  }
+
+  return Array.from(candidates.values());
+}
+
+function matrixToString(data: Uint8Array) {
+  let value = "";
+  for (const bit of data) {
+    value += bit ? "1" : "0";
+  }
+  return value;
+}
+
+function sourceToImageData(source: DetectionSource) {
+  const canvas = document.createElement("canvas");
+  canvas.width = getSourceWidth(source);
+  canvas.height = getSourceHeight(source);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    throw new Error("Could not read image pixels for QR matching.");
+  }
+  context.drawImage(source, 0, 0);
+  return context.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+function sampleDetectedQrMatrix(
+  imageData: ImageData,
+  result: BarcodeDetectionResult,
+  size: number,
+) {
+  const corners = getOrderedQrCorners(result);
+  const luminance: number[] = [];
+
+  for (let row = 0; row < size; row++) {
+    for (let col = 0; col < size; col++) {
+      const point = interpolateQuad(corners, (col + 0.5) / size, (row + 0.5) / size);
+      luminance.push(readLuminance(imageData, point.x, point.y));
+    }
+  }
+
+  const threshold = otsuThreshold(luminance);
+  const matrix = luminance.map((value) => (value < threshold ? "1" : "0")).join("");
+  const spread = percentile(luminance, 0.85) - percentile(luminance, 0.15);
+
+  return {
+    matrix,
+    confidence: Math.min(1, Math.max(0.35, spread / 130)),
+  };
+}
+
+function getOrderedQrCorners(result: BarcodeDetectionResult) {
+  const points =
+    result.cornerPoints.length === 4
+      ? result.cornerPoints
+      : [
+          { x: result.boundingBox.x, y: result.boundingBox.y },
+          { x: result.boundingBox.x + result.boundingBox.width, y: result.boundingBox.y },
+          {
+            x: result.boundingBox.x + result.boundingBox.width,
+            y: result.boundingBox.y + result.boundingBox.height,
+          },
+          { x: result.boundingBox.x, y: result.boundingBox.y + result.boundingBox.height },
+        ];
+
+  const center = {
+    x: points.reduce((total, point) => total + point.x, 0) / points.length,
+    y: points.reduce((total, point) => total + point.y, 0) / points.length,
+  };
+  const sorted = [...points].sort(
+    (a, b) =>
+      Math.atan2(a.y - center.y, a.x - center.x) -
+      Math.atan2(b.y - center.y, b.x - center.x),
+  );
+  const topLeftIndex = sorted.reduce((bestIndex, point, index) => {
+    const best = sorted[bestIndex];
+    return point.x + point.y < best.x + best.y ? index : bestIndex;
+  }, 0);
+  const ordered = [...sorted.slice(topLeftIndex), ...sorted.slice(0, topLeftIndex)];
+
+  return {
+    topLeft: ordered[0],
+    topRight: ordered[1],
+    bottomRight: ordered[2],
+    bottomLeft: ordered[3],
+  };
+}
+
+function interpolateQuad(
+  corners: ReturnType<typeof getOrderedQrCorners>,
+  u: number,
+  v: number,
+) {
+  const top = lerpPoint(corners.topLeft, corners.topRight, u);
+  const bottom = lerpPoint(corners.bottomLeft, corners.bottomRight, u);
+  return lerpPoint(top, bottom, v);
+}
+
+function lerpPoint(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  amount: number,
+) {
+  return {
+    x: start.x + (end.x - start.x) * amount,
+    y: start.y + (end.y - start.y) * amount,
+  };
+}
+
+function readLuminance(imageData: ImageData, x: number, y: number) {
+  const safeX = Math.min(imageData.width - 1, Math.max(0, Math.round(x)));
+  const safeY = Math.min(imageData.height - 1, Math.max(0, Math.round(y)));
+  const index = (safeY * imageData.width + safeX) * 4;
+  return (
+    imageData.data[index] * 0.299 +
+    imageData.data[index + 1] * 0.587 +
+    imageData.data[index + 2] * 0.114
+  );
+}
+
+function otsuThreshold(values: number[]) {
+  const histogram = new Array<number>(256).fill(0);
+  for (const value of values) {
+    histogram[Math.min(255, Math.max(0, Math.round(value)))]++;
+  }
+
+  const total = values.length;
+  let sum = 0;
+  for (let index = 0; index < histogram.length; index++) {
+    sum += index * histogram[index];
+  }
+
+  let sumBackground = 0;
+  let weightBackground = 0;
+  let maxVariance = 0;
+  let threshold = 128;
+
+  for (let index = 0; index < histogram.length; index++) {
+    weightBackground += histogram[index];
+    if (weightBackground === 0) continue;
+    const weightForeground = total - weightBackground;
+    if (weightForeground === 0) break;
+
+    sumBackground += index * histogram[index];
+    const meanBackground = sumBackground / weightBackground;
+    const meanForeground = (sum - sumBackground) / weightForeground;
+    const variance =
+      weightBackground *
+      weightForeground *
+      (meanBackground - meanForeground) *
+      (meanBackground - meanForeground);
+
+    if (variance > maxVariance) {
+      maxVariance = variance;
+      threshold = index;
+    }
+  }
+
+  return threshold;
+}
+
+function percentile(values: number[], ratio: number) {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * ratio)))];
+}
+
+function scoreMatrix(expected: string, sampled: string, confidence: number) {
+  const length = Math.min(expected.length, sampled.length);
+  let matches = 0;
+  for (let index = 0; index < length; index++) {
+    if (expected[index] === sampled[index]) {
+      matches++;
+    }
+  }
+  return (matches / length) * confidence;
 }
 
 async function normalizeImageFile(file: File): Promise<File | Blob> {
@@ -702,7 +1064,7 @@ async function getDroppedImageFile(dataTransfer: DataTransfer): Promise<File> {
     }
   }
 
-  throw new Error("Drop a PNG, JPG, HEIC, or HEIF screenshot.");
+  throw new Error("Drop a PNG, JPG, HEIC, or HEIF image.");
 }
 
 function firstImageFile(files: FileList) {
