@@ -591,8 +591,9 @@ select:focus {
   height: 280px;
 }
 
-.qr-tree-code {
-  width: 100%;
+.qr-tree-code,
+.barcode-city-code {
+  width: min(100%, 360px);
   display: grid;
   gap: 12px;
   justify-items: center;
@@ -629,8 +630,9 @@ select:focus {
   color: #fff;
 }
 
-.qr-artboard {
-  width: min(100%, 360px);
+.qr-artboard,
+.barcode-artboard {
+  width: 100%;
   border: 0;
   outline: none;
   padding: 0;
@@ -640,13 +642,15 @@ select:focus {
   color: inherit;
 }
 
-.qr-artboard:focus-visible .qr-tree-stage {
+.qr-artboard:focus-visible .qr-tree-stage,
+.barcode-artboard:focus-visible .barcode-city-stage {
   box-shadow:
     0 0 0 3px rgba(15, 118, 110, 0.2),
     0 14px 34px rgba(15, 23, 42, 0.13);
 }
 
-.qr-tree-stage {
+.qr-tree-stage,
+.barcode-city-stage {
   display: block;
   overflow: hidden;
   border: 1px solid rgba(15, 23, 42, 0.09);
@@ -657,16 +661,15 @@ select:focus {
   background: #f8f6ef;
 }
 
-.qr-tree-canvas {
+.barcode-city-stage {
+  background: #ffffff;
+}
+
+.qr-tree-canvas,
+.barcode-city-canvas {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-.code-frame .barcode-svg {
-  width: 100%;
-  max-width: 320px;
-  height: 150px;
 }
 
 .meta-list {

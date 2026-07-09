@@ -164,8 +164,6 @@ function drawQrTree(
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(canvasWidth * dpr);
   canvas.height = Math.round(canvasHeight * dpr);
-  canvas.style.width = `${canvasWidth}px`;
-  canvas.style.height = `${canvasHeight}px`;
 
   const context = canvas.getContext("2d");
   if (!context) return;
