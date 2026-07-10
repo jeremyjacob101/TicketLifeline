@@ -1,20 +1,9 @@
 # TicketLifeline
 
-A lightweight QR and barcode vault built with React, Vite, TypeScript, and Convex.
+TicketLifeline now keeps its two apps side by side while sharing this Git repository:
 
-The app does not store full uploaded screenshots. Images are decoded in the browser with
-`BarcodeDetector`, then the encoded payload, pass metadata, and, for QR codes, a compact
-digital module matrix are saved to Convex. When the photographed QR pattern can be matched,
-the saved matrix is rendered as a crisp digital QR that resembles the scanned original;
-otherwise the QR is regenerated from the payload as a fallback.
+- [`Codebase - TicketLifeline Web`](./Codebase%20-%20TicketLifeline%20Web) — the existing React, Vite, TypeScript, and Convex web vault.
+- [`Codebase - TicketLifeline iOS`](./Codebase%20-%20TicketLifeline%20iOS) — the native SwiftUI QR vault.
 
-## Local setup
-
-```bash
-npm install
-npm run convex:dev
-npm run dev
-```
-
-`npm run convex:dev` links the repo to a Convex project and writes the local Convex URL
-to `.env.local`.
+Each app has its own setup instructions in its folder. The iOS app is intentionally a simple,
+device-local QR scanner and vault for now; the web app remains independently backed by Convex.
