@@ -1,116 +1,131 @@
-import CryptoKit
-import Foundation
 import Combine
+import Foundation
 
-struct LocalAccount: Codable, Identifiable {
-    let id: UUID
-    let username: String
-    let passwordHash: String
-}
-
-struct SavedCode: Codable, Identifiable, Hashable {
-    let id: UUID
-    let ownerID: UUID
-    var label: String
+struct SavedCode: Identifiable, Hashable, Decodable {
+    let id: String
+    let label: String
     let payload: String
     let createdAt: Date
+
+    private enum CodingKeys: String, CodingKey {
+        case id = "_id"
+        case label = "title"
+        case payload = "encodedValue"
+        case createdAt
+    }
+
+    init(id: String, label: String, payload: String, createdAt: Date) {
+        self.id = id
+        self.label = label
+        self.payload = payload
+        self.createdAt = createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        label = try container.decode(String.self, forKey: .label)
+        payload = try container.decode(String.self, forKey: .payload)
+        let milliseconds = try container.decode(Double.self, forKey: .createdAt)
+        createdAt = Date(timeIntervalSince1970: milliseconds / 1_000)
+    }
 }
 
+@MainActor
 final class AppState: ObservableObject {
-    @Published private(set) var accounts: [LocalAccount] = []
-    @Published private(set) var codes: [SavedCode] = []
-    @Published private(set) var signedInAccountID: UUID?
+    @Published private(set) var savedCodes: [SavedCode] = []
+    @Published private(set) var isLoading = false
+    @Published private(set) var session: ConvexSession?
 
-    var signedInAccount: LocalAccount? {
-        accounts.first { $0.id == signedInAccountID }
-    }
+    var isSignedIn: Bool { session != nil }
 
-    var savedCodes: [SavedCode] {
-        guard let signedInAccountID else { return [] }
-        return codes
-            .filter { $0.ownerID == signedInAccountID }
-            .sorted { $0.createdAt > $1.createdAt }
-    }
+    private let client: ConvexClient
 
     init() {
-        load()
+        client = ConvexClient()
+        session = KeychainStore.load(ConvexSession.self, key: "ticketlifeline.convex.session")
+        if session != nil {
+            Task { try? await refreshCodes() }
+        }
     }
 
-    func createAccount(username: String, password: String) throws {
-        let normalizedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard normalizedUsername.count >= 3 else {
-            throw AppError.message("Choose a username with at least 3 characters.")
-        }
-        guard password.count >= 4 else {
-            throw AppError.message("Choose a password with at least 4 characters.")
-        }
-        guard !accounts.contains(where: { $0.username.caseInsensitiveCompare(normalizedUsername) == .orderedSame }) else {
-            throw AppError.message("That username is already in use on this device.")
-        }
-
-        let account = LocalAccount(id: UUID(), username: normalizedUsername, passwordHash: Self.hash(password))
-        accounts.append(account)
-        signedInAccountID = account.id
-        save()
+    func createAccount(username: String, password: String) async throws {
+        try await authenticate(username: username, password: password, flow: "signUp")
     }
 
-    func signIn(username: String, password: String) throws {
-        let normalizedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let account = accounts.first(where: {
-            $0.username.caseInsensitiveCompare(normalizedUsername) == .orderedSame && $0.passwordHash == Self.hash(password)
-        }) else {
-            throw AppError.message("Incorrect username or password.")
-        }
-        signedInAccountID = account.id
-        save()
+    func signIn(username: String, password: String) async throws {
+        try await authenticate(username: username, password: password, flow: "signIn")
     }
 
     func signOut() {
-        signedInAccountID = nil
-        save()
+        session = nil
+        savedCodes = []
+        KeychainStore.remove(key: "ticketlifeline.convex.session")
     }
 
-    func saveCode(payload: String, label: String) {
-        guard let signedInAccountID else { return }
-        codes.append(SavedCode(
-            id: UUID(), ownerID: signedInAccountID,
-            label: label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Scanned QR code" : label.trimmingCharacters(in: .whitespacesAndNewlines),
-            payload: payload,
-            createdAt: Date()
-        ))
-        save()
+    func refreshCodes() async throws {
+        let session = try await refreshedSession()
+        isLoading = true
+        defer { isLoading = false }
+        savedCodes = try await client.query("passes:list", token: session.token)
     }
 
-    func deleteCode(_ code: SavedCode) {
-        codes.removeAll { $0.id == code.id }
-        save()
+    func saveCode(payload: String, label: String) async throws {
+        let session = try await refreshedSession()
+        let title = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        let input = CreatePass(
+            title: title.isEmpty ? "Scanned QR code" : title,
+            issuer: nil,
+            codeType: "qr",
+            format: "QR_CODE",
+            encodedValue: payload,
+            launchUrl: nil,
+            visualMatrix: nil,
+            visualSize: nil,
+            eventDate: nil,
+            notes: nil,
+            color: "#4f46e5"
+        )
+        _ = try await client.mutation("passes:create", args: input, token: session.token, returning: String.self)
+        try await refreshCodes()
     }
 
-    private static let storageKey = "ticketLifeline.localVault.v1"
+    private func authenticate(username: String, password: String, flow: String) async throws {
+        let cleanUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cleanUsername.count >= 3 else { throw AppError.message("Choose a username with at least 3 characters.") }
+        guard password.count >= 4 else { throw AppError.message("Choose a password with at least 4 characters.") }
 
-    private func load() {
-        guard let data = UserDefaults.standard.data(forKey: Self.storageKey),
-              let vault = try? JSONDecoder().decode(LocalVault.self, from: data) else { return }
-        accounts = vault.accounts
-        codes = vault.codes
-        signedInAccountID = vault.signedInAccountID
+        isLoading = true
+        defer { isLoading = false }
+        let tokens = try await client.signIn(username: cleanUsername, password: password, flow: flow)
+        let newSession = ConvexSession(username: cleanUsername, token: tokens.token, refreshToken: tokens.refreshToken)
+        session = newSession
+        KeychainStore.save(newSession, key: "ticketlifeline.convex.session")
+        try await refreshCodes()
     }
 
-    private func save() {
-        let vault = LocalVault(accounts: accounts, codes: codes, signedInAccountID: signedInAccountID)
-        guard let data = try? JSONEncoder().encode(vault) else { return }
-        UserDefaults.standard.set(data, forKey: Self.storageKey)
-    }
-
-    private static func hash(_ password: String) -> String {
-        SHA256.hash(data: Data(password.utf8)).map { String(format: "%02x", $0) }.joined()
+    private func refreshedSession() async throws -> ConvexSession {
+        guard let session else { throw AppError.message("Please sign in again.") }
+        let tokens = try await client.refresh(refreshToken: session.refreshToken)
+        let refreshed = ConvexSession(username: session.username, token: tokens.token, refreshToken: tokens.refreshToken)
+        self.session = refreshed
+        KeychainStore.save(refreshed, key: "ticketlifeline.convex.session")
+        return refreshed
     }
 }
 
-private struct LocalVault: Codable {
-    let accounts: [LocalAccount]
-    let codes: [SavedCode]
-    let signedInAccountID: UUID?
+private struct CreatePass: Encodable {
+    let title: String
+    let issuer: String?
+    let codeType: String
+    let format: String?
+    let encodedValue: String
+    let launchUrl: String?
+    let visualMatrix: String?
+    let visualSize: Int?
+    let eventDate: String?
+    let notes: String?
+    let color: String?
 }
 
 enum AppError: LocalizedError {

@@ -1,11 +1,18 @@
+# Shared Convex local configuration and generated files
+/node_modules/
+/.env
+/.env.local
+/.env.*.local
+/convex/_generated/
+/convex/tsconfig.tsbuildinfo
+/buildServer.json
+
 # Web application output and local configuration
 Codebase - TicketLifeline Web/node_modules/
 Codebase - TicketLifeline Web/dist/
 Codebase - TicketLifeline Web/.env
 Codebase - TicketLifeline Web/.env.local
 Codebase - TicketLifeline Web/.env.*.local
-Codebase - TicketLifeline Web/convex/_generated/
-Codebase - TicketLifeline Web/convex/tsconfig.tsbuildinfo
 
 # Xcode user- and build-generated files
 Codebase - TicketLifeline iOS/DerivedData/

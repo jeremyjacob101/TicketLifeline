@@ -7,7 +7,9 @@ struct VaultView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if appState.savedCodes.isEmpty {
+                if appState.isLoading && appState.savedCodes.isEmpty {
+                    ProgressView("Loading your QR codes...")
+                } else if appState.savedCodes.isEmpty {
                     ContentUnavailableView {
                         Label("No QR codes yet", systemImage: "qrcode.viewfinder")
                     } description: {
@@ -41,6 +43,8 @@ struct VaultView: View {
             .sheet(isPresented: $isShowingScanner) {
                 ScanCodeView(appState: appState)
             }
+            .refreshable { try? await appState.refreshCodes() }
+            .task { try? await appState.refreshCodes() }
         }
     }
 }

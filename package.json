@@ -1,0 +1,20 @@
+{
+  "name": "ticketlifeline-backend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "convex:dev": "convex dev",
+    "convex:deploy": "convex deploy",
+    "convex:codegen": "convex codegen",
+    "convex:typecheck": "tsc -p convex/tsconfig.json"
+  },
+  "dependencies": {
+    "@convex-dev/auth": "^0.0.92",
+    "convex": "^1.39.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "~6.0.2"
+  }
+}

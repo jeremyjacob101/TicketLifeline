@@ -5,7 +5,7 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if appState.signedInAccount == nil {
+            if !appState.isSignedIn {
                 AuthView(appState: appState)
             } else {
                 VaultView(appState: appState)
@@ -34,7 +34,7 @@ private struct AuthView: View {
                 VStack(spacing: 8) {
                     Text("TicketLifeline")
                         .font(.largeTitle.bold())
-                    Text(mode == .signIn ? "Sign in to your QR vault." : "Create your device-local QR vault.")
+                    Text(mode == .signIn ? "Sign in to your shared QR vault." : "Create a shared QR vault account.")
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -56,6 +56,7 @@ private struct AuthView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                         .frame(maxWidth: .infinity)
+                        .disabled(appState.isLoading)
                 }
                 Button(mode == .signIn ? "Need an account? Create one" : "Already have an account? Sign in") {
                     mode = mode == .signIn ? .createAccount : .signIn
@@ -63,7 +64,7 @@ private struct AuthView: View {
                 }
                 .font(.subheadline)
                 Spacer()
-                Text("This first version keeps accounts and scans on this device only.")
+                Text("Your account and saved QR codes sync with the TicketLifeline web vault.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -74,14 +75,16 @@ private struct AuthView: View {
 
     private func submit() {
         errorMessage = nil
-        do {
-            if mode == .signIn {
-                try appState.signIn(username: username, password: password)
-            } else {
-                try appState.createAccount(username: username, password: password)
+        Task {
+            do {
+                if mode == .signIn {
+                    try await appState.signIn(username: username, password: password)
+                } else {
+                    try await appState.createAccount(username: username, password: password)
+                }
+            } catch {
+                errorMessage = error.localizedDescription
             }
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 }

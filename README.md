@@ -1,9 +1,18 @@
 # TicketLifeline
 
-TicketLifeline now keeps its two apps side by side while sharing this Git repository:
+TicketLifeline keeps its two apps side by side while sharing a single Convex backend at the
+repository root:
 
-- [`Codebase - TicketLifeline Web`](./Codebase%20-%20TicketLifeline%20Web) — the existing React, Vite, TypeScript, and Convex web vault.
-- [`Codebase - TicketLifeline iOS`](./Codebase%20-%20TicketLifeline%20iOS) — the native SwiftUI QR vault.
+- [`convex`](./convex) — shared schema, authentication, queries, and mutations.
+- [`Codebase - TicketLifeline Web`](./Codebase%20-%20TicketLifeline%20Web) — React, Vite, and TypeScript client.
+- [`Codebase - TicketLifeline iOS`](./Codebase%20-%20TicketLifeline%20iOS) — native SwiftUI client.
 
-Each app has its own setup instructions in its folder. The iOS app is intentionally a simple,
-device-local QR scanner and vault for now; the web app remains independently backed by Convex.
+Run the shared backend from the repository root:
+
+```bash
+npm install
+npm run convex:dev
+```
+
+The web and iOS apps use the same Convex user accounts and pass records. Each client has its
+own run instructions in its folder.

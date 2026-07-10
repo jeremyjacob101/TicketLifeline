@@ -7,10 +7,10 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "convex:dev": "convex dev",
-    "convex:deploy": "convex deploy",
-    "convex:codegen": "convex codegen",
-    "convex:typecheck": "tsc -p convex/tsconfig.json"
+    "convex:dev": "npm --prefix .. run convex:dev",
+    "convex:deploy": "npm --prefix .. run convex:deploy",
+    "convex:codegen": "npm --prefix .. run convex:codegen",
+    "convex:typecheck": "npm --prefix .. run convex:typecheck"
   },
   "dependencies": {
     "@convex-dev/auth": "^0.0.92",

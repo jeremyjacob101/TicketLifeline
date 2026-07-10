@@ -6,6 +6,7 @@ struct ScanCodeView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var scannedValue: String?
     @State private var label = ""
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -17,10 +18,13 @@ struct ScanCodeView: View {
                     TextField("Name this code (optional)", text: $label)
                         .textFieldStyle(.roundedBorder)
                     Button("Save QR Code") {
-                        appState.saveCode(payload: scannedValue, label: label)
-                        dismiss()
+                        save(scannedValue)
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(appState.isLoading)
+                    if let errorMessage {
+                        Text(errorMessage).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center)
+                    }
                     Button("Scan another") { self.scannedValue = nil }
                 } else {
                     QRScannerView { value in scannedValue = value }
@@ -37,6 +41,18 @@ struct ScanCodeView: View {
             .navigationTitle("Scan QR Code")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+        }
+    }
+
+    private func save(_ value: String) {
+        errorMessage = nil
+        Task {
+            do {
+                try await appState.saveCode(payload: value, label: label)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 }
