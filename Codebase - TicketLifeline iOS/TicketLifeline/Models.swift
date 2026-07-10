@@ -5,19 +5,42 @@ struct SavedCode: Identifiable, Hashable, Decodable {
     let id: String
     let label: String
     let payload: String
+    let codeType: String
+    let format: String?
+    let issuer: String?
+    let launchURL: String?
+    let eventDate: String?
+    let notes: String?
+    let color: String?
     let createdAt: Date
+
+    var isBarcode: Bool { codeType == "barcode" }
 
     private enum CodingKeys: String, CodingKey {
         case id = "_id"
         case label = "title"
         case payload = "encodedValue"
+        case codeType
+        case format
+        case issuer
+        case launchURL = "launchUrl"
+        case eventDate
+        case notes
+        case color
         case createdAt
     }
 
-    init(id: String, label: String, payload: String, createdAt: Date) {
+    init(id: String, label: String, payload: String, codeType: String, format: String?, issuer: String?, launchURL: String?, eventDate: String?, notes: String?, color: String?, createdAt: Date) {
         self.id = id
         self.label = label
         self.payload = payload
+        self.codeType = codeType
+        self.format = format
+        self.issuer = issuer
+        self.launchURL = launchURL
+        self.eventDate = eventDate
+        self.notes = notes
+        self.color = color
         self.createdAt = createdAt
     }
 
@@ -26,6 +49,13 @@ struct SavedCode: Identifiable, Hashable, Decodable {
         id = try container.decode(String.self, forKey: .id)
         label = try container.decode(String.self, forKey: .label)
         payload = try container.decode(String.self, forKey: .payload)
+        codeType = try container.decode(String.self, forKey: .codeType)
+        format = try container.decodeIfPresent(String.self, forKey: .format)
+        issuer = try container.decodeIfPresent(String.self, forKey: .issuer)
+        launchURL = try container.decodeIfPresent(String.self, forKey: .launchURL)
+        eventDate = try container.decodeIfPresent(String.self, forKey: .eventDate)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        color = try container.decodeIfPresent(String.self, forKey: .color)
         let milliseconds = try container.decode(Double.self, forKey: .createdAt)
         createdAt = Date(timeIntervalSince1970: milliseconds / 1_000)
     }

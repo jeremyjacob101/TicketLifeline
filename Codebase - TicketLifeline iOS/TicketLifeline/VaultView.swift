@@ -54,14 +54,17 @@ private struct CodeRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            QRCodeImage(payload: code.payload)
+            CodeImage(code: code)
                 .frame(width: 54, height: 54)
                 .padding(5)
                 .background(.white, in: RoundedRectangle(cornerRadius: 9))
                 .overlay { RoundedRectangle(cornerRadius: 9).stroke(.quaternary) }
             VStack(alignment: .leading, spacing: 4) {
                 Text(code.label).font(.headline)
-                Text(code.payload).lineLimit(1).font(.subheadline).foregroundStyle(.secondary)
+                Text(code.format ?? (code.isBarcode ? "Barcode" : "QR Code"))
+                    .lineLimit(1)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 3)
@@ -74,8 +77,9 @@ private struct CodeDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                QRCodeImage(payload: code.payload)
-                    .frame(width: 280, height: 280)
+                CodeImage(code: code)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: code.isBarcode ? 170 : 280)
                     .padding(18)
                     .background(.white, in: RoundedRectangle(cornerRadius: 22))
                     .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
@@ -84,6 +88,7 @@ private struct CodeDetailView: View {
                     Text(code.createdAt, format: .dateTime.month().day().year().hour().minute())
                         .font(.footnote).foregroundStyle(.secondary)
                 }
+                PassInfoCard(code: code)
                 VStack(alignment: .leading, spacing: 8) {
                     Text("SCANNED VALUE").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     Text(code.payload).textSelection(.enabled).font(.body.monospaced())
@@ -95,7 +100,58 @@ private struct CodeDetailView: View {
             .padding(24)
         }
         .background(Color(uiColor: .systemGroupedBackground))
-        .navigationTitle("QR Code")
+        .navigationTitle(code.isBarcode ? "Barcode" : "QR Code")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct CodeImage: View {
+    let code: SavedCode
+
+    var body: some View {
+        if code.isBarcode {
+            BarcodeImage(payload: code.payload)
+        } else {
+            QRCodeImage(payload: code.payload)
+        }
+    }
+}
+
+private struct PassInfoCard: View {
+    let code: SavedCode
+
+    var body: some View {
+        VStack(spacing: 0) {
+            InfoRow(label: "Type", value: code.isBarcode ? "Barcode" : "QR code")
+            InfoRow(label: "Format", value: code.format ?? "Not available")
+            InfoRow(label: "Issuer", value: code.issuer ?? "Not provided")
+            InfoRow(label: "Pass date", value: code.eventDate ?? "Anytime")
+            InfoRow(label: "Notes", value: code.notes ?? "No notes")
+            if let launchURL = code.launchURL {
+                InfoRow(label: "Scan link", value: launchURL)
+            }
+        }
+        .padding(.horizontal)
+        .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+private struct InfoRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 18) {
+            Text(label.uppercased())
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 82, alignment: .leading)
+            Text(value)
+                .font(.subheadline)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 12)
+        .overlay(alignment: .bottom) { Divider().opacity(label == "Scan link" ? 0 : 1) }
     }
 }
