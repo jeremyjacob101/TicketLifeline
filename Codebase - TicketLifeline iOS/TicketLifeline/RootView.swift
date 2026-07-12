@@ -5,15 +5,45 @@ struct RootView: View {
 
     var body: some View {
         Group {
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["TICKETLIFELINE_ART_PREVIEW"] == "1" {
+                NavigationStack { CodeDetailView(code: .debugQRCode) }
+            } else if !appState.isSignedIn {
+                AuthView(appState: appState)
+            } else {
+                VaultView(appState: appState)
+            }
+            #else
             if !appState.isSignedIn {
                 AuthView(appState: appState)
             } else {
                 VaultView(appState: appState)
             }
+            #endif
         }
         .tint(.indigo)
     }
 }
+
+#if DEBUG
+private extension SavedCode {
+    static let debugQRCode = SavedCode(
+        id: "debug-qr",
+        label: "Cherry Blossom Preview",
+        payload: "https://ticketlifeline.app/preview/cherry-blossom",
+        codeType: "qr",
+        format: "QR_CODE",
+        issuer: "TicketLifeline",
+        launchURL: nil,
+        eventDate: nil,
+        notes: "Metal renderer visual QA",
+        color: "#8f3f5a",
+        visualMatrix: nil,
+        visualSize: nil,
+        createdAt: Date()
+    )
+}
+#endif
 
 private struct AuthView: View {
     enum Mode { case signIn, createAccount }

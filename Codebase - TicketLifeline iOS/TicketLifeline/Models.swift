@@ -12,6 +12,8 @@ struct SavedCode: Identifiable, Hashable, Decodable {
     let eventDate: String?
     let notes: String?
     let color: String?
+    let visualMatrix: String?
+    let visualSize: Int?
     let createdAt: Date
 
     var isBarcode: Bool { codeType == "barcode" }
@@ -27,10 +29,12 @@ struct SavedCode: Identifiable, Hashable, Decodable {
         case eventDate
         case notes
         case color
+        case visualMatrix
+        case visualSize
         case createdAt
     }
 
-    init(id: String, label: String, payload: String, codeType: String, format: String?, issuer: String?, launchURL: String?, eventDate: String?, notes: String?, color: String?, createdAt: Date) {
+    init(id: String, label: String, payload: String, codeType: String, format: String?, issuer: String?, launchURL: String?, eventDate: String?, notes: String?, color: String?, visualMatrix: String?, visualSize: Int?, createdAt: Date) {
         self.id = id
         self.label = label
         self.payload = payload
@@ -41,6 +45,8 @@ struct SavedCode: Identifiable, Hashable, Decodable {
         self.eventDate = eventDate
         self.notes = notes
         self.color = color
+        self.visualMatrix = visualMatrix
+        self.visualSize = visualSize
         self.createdAt = createdAt
     }
 
@@ -56,6 +62,8 @@ struct SavedCode: Identifiable, Hashable, Decodable {
         eventDate = try container.decodeIfPresent(String.self, forKey: .eventDate)
         notes = try container.decodeIfPresent(String.self, forKey: .notes)
         color = try container.decodeIfPresent(String.self, forKey: .color)
+        visualMatrix = try container.decodeIfPresent(String.self, forKey: .visualMatrix)
+        visualSize = try container.decodeIfPresent(Int.self, forKey: .visualSize)
         let milliseconds = try container.decode(Double.self, forKey: .createdAt)
         createdAt = Date(timeIntervalSince1970: milliseconds / 1_000)
     }

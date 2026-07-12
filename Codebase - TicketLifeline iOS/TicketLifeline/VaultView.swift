@@ -71,18 +71,39 @@ private struct CodeRow: View {
     }
 }
 
-private struct CodeDetailView: View {
+struct CodeDetailView: View {
     let code: SavedCode
+    @State private var displayMode: DisplayMode = .code
 
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                CodeImage(code: code)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: code.isBarcode ? 170 : 280)
-                    .padding(18)
-                    .background(.white, in: RoundedRectangle(cornerRadius: 22))
-                    .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+                Picker("Code display", selection: $displayMode) {
+                    Text("2D code").tag(DisplayMode.code)
+                    Text(code.isBarcode ? "Skyline" : "Cherry tree").tag(DisplayMode.art)
+                }
+                .pickerStyle(.segmented)
+
+                Group {
+                    if code.isBarcode {
+                        BarcodeCityView(code: code, isFlat: displayMode == .code)
+                            .clipShape(RoundedRectangle(cornerRadius: 22))
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                displayMode = displayMode == .code ? .art : .code
+                            }
+                    } else {
+                        QRTreeMetalView(code: code, isFlat: displayMode == .code)
+                            .clipShape(RoundedRectangle(cornerRadius: 22))
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                displayMode = displayMode == .code ? .art : .code
+                            }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: code.isBarcode ? 300 : 360)
+                .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
                 VStack(spacing: 8) {
                     Text(code.label).font(.title2.bold())
                     Text(code.createdAt, format: .dateTime.month().day().year().hour().minute())
@@ -103,6 +124,8 @@ private struct CodeDetailView: View {
         .navigationTitle(code.isBarcode ? "Barcode" : "QR Code")
         .navigationBarTitleDisplayMode(.inline)
     }
+
+    private enum DisplayMode: Hashable { case code, art }
 }
 
 private struct CodeImage: View {

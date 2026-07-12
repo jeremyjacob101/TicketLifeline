@@ -7,25 +7,33 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		489EDE64C0295FF886C0EB16 /* QRTreeShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0DB75EC346F7A940600D47B1 /* QRTreeShaders.metal */; };
+		A55DCE70C018B93F0495EAB1 /* BarcodeCityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55DCE70C018B93F0495EAB0 /* BarcodeCityView.swift */; };
 		4F951470E538A77A6AE112FE /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6DB76867DC0A62820E6E9CA /* Models.swift */; };
 		571270E6ED24C8C2215D56AF /* QRCodeImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC1A00B33B9DD27A214F5BB /* QRCodeImage.swift */; };
 		6EEC14A43470163C2D9695D5 /* VaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E221E4A4D02E27F5ACED4F /* VaultView.swift */; };
+		87AF89AF3FE2293ED1B1DF14 /* CodeArtView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57ADBF98E2F51E5F823E440D /* CodeArtView.swift */; };
 		9BC2860CAB1DC10F648628FA /* TicketLifelineApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FBF97F2ADBE38DE907D4418 /* TicketLifelineApp.swift */; };
 		AFF819AC3558D370FBC2ADCD /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A17C41BDF5CAD1CAE18DB8 /* RootView.swift */; };
 		C46FE746F47658E496699E1F /* ConvexClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B4DA3DEE03F9F9F78E3928C /* ConvexClient.swift */; };
 		C8390B97B3845ECC40627E2B /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3226219E80B77ECC999152E4 /* QRScannerView.swift */; };
+		EB31DF5DBADCDFC0134902DE /* QRTreeMetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4C98B804910C614F05CD23 /* QRTreeMetalView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		00FF1A9FE3E065688A627213 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		0DB75EC346F7A940600D47B1 /* QRTreeShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = QRTreeShaders.metal; sourceTree = "<group>"; };
+		A55DCE70C018B93F0495EAB0 /* BarcodeCityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeCityView.swift; sourceTree = "<group>"; };
 		3226219E80B77ECC999152E4 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		54D0E72632CF69EB20139A71 /* TicketLifeline.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TicketLifeline.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		57ADBF98E2F51E5F823E440D /* CodeArtView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeArtView.swift; sourceTree = "<group>"; };
 		5FBF97F2ADBE38DE907D4418 /* TicketLifelineApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TicketLifelineApp.swift; sourceTree = "<group>"; };
 		7CC1A00B33B9DD27A214F5BB /* QRCodeImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeImage.swift; sourceTree = "<group>"; };
 		80A17C41BDF5CAD1CAE18DB8 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		9B4DA3DEE03F9F9F78E3928C /* ConvexClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexClient.swift; sourceTree = "<group>"; };
 		D4E221E4A4D02E27F5ACED4F /* VaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultView.swift; sourceTree = "<group>"; };
 		D6DB76867DC0A62820E6E9CA /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		ED4C98B804910C614F05CD23 /* QRTreeMetalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRTreeMetalView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -48,11 +56,15 @@
 		7EB7F58C89797C61493BE089 /* TicketLifeline */ = {
 			isa = PBXGroup;
 			children = (
+				A55DCE70C018B93F0495EAB0 /* BarcodeCityView.swift */,
+				57ADBF98E2F51E5F823E440D /* CodeArtView.swift */,
 				9B4DA3DEE03F9F9F78E3928C /* ConvexClient.swift */,
 				00FF1A9FE3E065688A627213 /* Info.plist */,
 				D6DB76867DC0A62820E6E9CA /* Models.swift */,
 				7CC1A00B33B9DD27A214F5BB /* QRCodeImage.swift */,
 				3226219E80B77ECC999152E4 /* QRScannerView.swift */,
+				ED4C98B804910C614F05CD23 /* QRTreeMetalView.swift */,
+				0DB75EC346F7A940600D47B1 /* QRTreeShaders.metal */,
 				80A17C41BDF5CAD1CAE18DB8 /* RootView.swift */,
 				5FBF97F2ADBE38DE907D4418 /* TicketLifelineApp.swift */,
 				D4E221E4A4D02E27F5ACED4F /* VaultView.swift */,
@@ -115,10 +127,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A55DCE70C018B93F0495EAB1 /* BarcodeCityView.swift in Sources */,
+				87AF89AF3FE2293ED1B1DF14 /* CodeArtView.swift in Sources */,
 				C46FE746F47658E496699E1F /* ConvexClient.swift in Sources */,
 				4F951470E538A77A6AE112FE /* Models.swift in Sources */,
 				571270E6ED24C8C2215D56AF /* QRCodeImage.swift in Sources */,
 				C8390B97B3845ECC40627E2B /* QRScannerView.swift in Sources */,
+				EB31DF5DBADCDFC0134902DE /* QRTreeMetalView.swift in Sources */,
+				489EDE64C0295FF886C0EB16 /* QRTreeShaders.metal in Sources */,
 				AFF819AC3558D370FBC2ADCD /* RootView.swift in Sources */,
 				9BC2860CAB1DC10F648628FA /* TicketLifelineApp.swift in Sources */,
 				6EEC14A43470163C2D9695D5 /* VaultView.swift in Sources */,
