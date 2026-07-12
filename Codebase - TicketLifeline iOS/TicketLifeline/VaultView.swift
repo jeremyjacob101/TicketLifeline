@@ -78,32 +78,24 @@ struct CodeDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                Picker("Code display", selection: $displayMode) {
-                    Text("2D code").tag(DisplayMode.code)
-                    Text(code.isBarcode ? "Skyline" : "Cherry tree").tag(DisplayMode.art)
-                }
-                .pickerStyle(.segmented)
-
-                Group {
-                    if code.isBarcode {
-                        BarcodeCityView(code: code, isFlat: displayMode == .code)
-                            .clipShape(RoundedRectangle(cornerRadius: 22))
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                displayMode = displayMode == .code ? .art : .code
-                            }
-                    } else {
-                        QRTreeMetalView(code: code, isFlat: displayMode == .code)
-                            .clipShape(RoundedRectangle(cornerRadius: 22))
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                displayMode = displayMode == .code ? .art : .code
-                            }
+                Button {
+                    displayMode = displayMode == .code ? .art : .code
+                } label: {
+                    Group {
+                        if code.isBarcode {
+                            BarcodeCityView(code: code, isFlat: displayMode == .code)
+                        } else {
+                            QRTreeMetalView(code: code, isFlat: displayMode == .code)
+                        }
                     }
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
                 }
+                .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
-                .frame(height: code.isBarcode ? 300 : 360)
+                .frame(height: 360)
                 .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+                .accessibilityLabel(displayMode == .code ? (code.isBarcode ? "Scannable barcode" : "Scannable QR code") : (code.isBarcode ? "Barcode skyline" : "Cherry tree"))
+                .accessibilityHint("Double tap to switch between the scannable code and its art view")
                 VStack(spacing: 8) {
                     Text(code.label).font(.title2.bold())
                     Text(code.createdAt, format: .dateTime.month().day().year().hour().minute())

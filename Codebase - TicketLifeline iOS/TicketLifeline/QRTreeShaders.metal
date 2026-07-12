@@ -7,7 +7,8 @@ struct Uniforms {
     float blockCount;
     float progress;
     float gridSize;
-    float3 padding;
+    float moduleScale;
+    float2 padding;
 };
 
 struct BlockData {
@@ -53,14 +54,15 @@ vertex RasterOut qrBlockVertex(
         float2(0, 1), float2(1, 0), float2(1, 1)
     };
     float2 q = quad[localIndex];
-    float halfGrid = uniforms.gridSize * blockSize * 0.5;
+    float moduleSize = blockSize * uniforms.moduleScale;
+    float halfGrid = uniforms.gridSize * moduleSize * 0.5;
     // Block positions are module indices. Offset by half a module before
     // centering so an odd or even QR matrix is geometrically exact.
-    float baseX = (block.position.x + 0.5) * blockSize - halfGrid;
-    float baseY = block.baseY;
-    float baseZ = (block.position.y + 0.5) * blockSize - halfGrid;
-    float halfSize = blockSize * 0.5;
-    float h = block.height;
+    float baseX = (block.position.x + 0.5) * moduleSize - halfGrid;
+    float baseY = block.baseY * uniforms.moduleScale;
+    float baseZ = (block.position.y + 0.5) * moduleSize - halfGrid;
+    float halfSize = moduleSize * 0.5;
+    float h = block.height * uniforms.moduleScale;
     bool decorative = block.type >= 5;
     float widthScale = decorative ? (1.0 - uniforms.progress) : 1.0;
     halfSize *= widthScale;
@@ -68,17 +70,17 @@ vertex RasterOut qrBlockVertex(
     float3 n = 0;
 
     if (face == 0) {
-        p = float3(baseX + (q.x - 0.5) * blockSize * widthScale, baseY + h * widthScale, baseZ + (q.y - 0.5) * blockSize * widthScale); n = float3(0, 1, 0);
+        p = float3(baseX + (q.x - 0.5) * moduleSize * widthScale, baseY + h * widthScale, baseZ + (q.y - 0.5) * moduleSize * widthScale); n = float3(0, 1, 0);
     } else if (face == 1) {
-        p = float3(baseX + (q.x - 0.5) * blockSize * widthScale, baseY, baseZ + (0.5 - q.y) * blockSize * widthScale); n = float3(0, -1, 0);
+        p = float3(baseX + (q.x - 0.5) * moduleSize * widthScale, baseY, baseZ + (0.5 - q.y) * moduleSize * widthScale); n = float3(0, -1, 0);
     } else if (face == 2) {
-        p = float3(baseX + (q.x - 0.5) * blockSize * widthScale, baseY + q.y * h * widthScale, baseZ + halfSize); n = float3(0, 0, 1);
+        p = float3(baseX + (q.x - 0.5) * moduleSize * widthScale, baseY + q.y * h * widthScale, baseZ + halfSize); n = float3(0, 0, 1);
     } else if (face == 3) {
-        p = float3(baseX + (0.5 - q.x) * blockSize * widthScale, baseY + q.y * h * widthScale, baseZ - halfSize); n = float3(0, 0, -1);
+        p = float3(baseX + (0.5 - q.x) * moduleSize * widthScale, baseY + q.y * h * widthScale, baseZ - halfSize); n = float3(0, 0, -1);
     } else if (face == 4) {
-        p = float3(baseX + halfSize, baseY + q.y * h * widthScale, baseZ + (q.x - 0.5) * blockSize * widthScale); n = float3(1, 0, 0);
+        p = float3(baseX + halfSize, baseY + q.y * h * widthScale, baseZ + (q.x - 0.5) * moduleSize * widthScale); n = float3(1, 0, 0);
     } else {
-        p = float3(baseX - halfSize, baseY + q.y * h * widthScale, baseZ + (0.5 - q.x) * blockSize * widthScale); n = float3(-1, 0, 0);
+        p = float3(baseX - halfSize, baseY + q.y * h * widthScale, baseZ + (0.5 - q.x) * moduleSize * widthScale); n = float3(-1, 0, 0);
     }
 
     float angleY = mix(isoAngleY, flatAngleY, uniforms.progress);
@@ -95,7 +97,11 @@ vertex RasterOut qrBlockVertex(
     // its actual bounds center in the card, while the flat scan view stays
     // mathematically centered at the origin.
     float yOffset = mix(-0.055, 0.0, uniforms.progress);
-    out.position = float4(rotatedX * scaleX, (rotatedY + yOffset) * scaleY, depth * 0.01 + 0.5, 1);
+    // Type 6 is the short front root only. It needs a small bias to stay
+    // visible at ground level, unlike the tall trunk which must be hidden by
+    // the blossom crown.
+    float rootDepthBias = block.type == 6 ? -0.018 : 0.0;
+    out.position = float4(rotatedX * scaleX, (rotatedY + yOffset) * scaleY, depth * 0.01 + 0.5 + rootDepthBias, 1);
     out.uv = q;
     out.normal = n;
     out.blockType = float(block.type == 5 ? 1 : block.type == 6 ? 2 : block.type);
@@ -180,7 +186,8 @@ vertex SimpleOut qrShadowVertex(uint vertexID [[vertex_id]], constant Uniforms &
     SimpleOut out;
     const float2 quad[6] = { float2(-1,-1), float2(1,-1), float2(-1,1), float2(-1,1), float2(1,-1), float2(1,1) };
     float2 q = quad[vertexID];
-    float halfGrid = uniforms.gridSize * blockSize * 0.5;
+    float moduleSize = blockSize * uniforms.moduleScale;
+    float halfGrid = uniforms.gridSize * moduleSize * 0.5;
     float2 offset = float2(0.5, 0.5) * 0.48 * 0.35 * (1.0 - uniforms.progress);
     float3 p = float3(q.x * halfGrid * 0.85 + offset.x, -0.48, q.y * halfGrid * 0.85 + offset.y);
     float angleY = mix(isoAngleY, flatAngleY, uniforms.progress), angleX = mix(isoAngleX, flatAngleX, uniforms.progress);

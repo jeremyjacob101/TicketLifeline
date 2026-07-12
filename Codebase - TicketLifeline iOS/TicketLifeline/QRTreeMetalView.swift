@@ -87,7 +87,8 @@ private struct GPUUniforms {
     var blockCount: Float
     var progress: Float
     var gridSize: Float
-    var padding = SIMD3<Float>(repeating: 0)
+    var moduleScale: Float
+    var padding = SIMD2<Float>(repeating: 0)
 }
 
 private final class QRTreeMetalRenderer: NSObject, MTKViewDelegate {
@@ -183,7 +184,8 @@ private final class QRTreeMetalRenderer: NSObject, MTKViewDelegate {
             time: Float(now - startTime),
             blockCount: Float(blockCount),
             progress: progress,
-            gridSize: gridSize
+            gridSize: gridSize,
+            moduleScale: 29 / gridSize
         )
         memcpy(uniformBuffer.contents(), &uniforms, MemoryLayout<GPUUniforms>.stride)
 
@@ -225,6 +227,15 @@ private final class QRTreeMetalRenderer: NSObject, MTKViewDelegate {
                 add(column, row, base: 0, height: blockSize, type: type)
             }
         }
+        // Two short, camera-facing root columns sit below the crown. They
+        // make the trunk read as a real tree without placing any brown block
+        // above the leaves or relying on a depth bias.
+        let core = Int(center.rounded(.down))
+        let frontRow = max(0, core - 1)
+        for column in core...min(side - 1, core + 1) {
+            let height = (26 + pseudoRandom(column, frontRow, 89) * 4) * heightScale
+            add(column, frontRow, base: blockSize, height: height, type: 6)
+        }
         for row in 0..<side {
             for column in 0..<side {
                 let dark = matrix.dark(row, column)
@@ -235,8 +246,15 @@ private final class QRTreeMetalRenderer: NSObject, MTKViewDelegate {
                 if !dark && !ornamental { continue }
 
                 if dark && distance < trunkRadius {
-                    let height = (42 + pseudoRandom(column, row, 5) * 8) * heightScale
+                    // A mature trunk reaches into the lower crown; depth
+                    // testing still keeps the foliage in front of it.
+                    let height = (60 + pseudoRandom(column, row, 10) * 8) * heightScale
                     add(column, row, base: blockSize, height: height, type: 2)
+                    // A blossom cap is actual occluding geometry—not alpha—so
+                    // the trunk supports the crown without poking through it.
+                    let capBase = (61 + pseudoRandom(column, row, 27) * 5) * heightScale
+                    let capHeight = (18 + pseudoRandom(column, row, 31) * 8) * heightScale
+                    add(column, row, base: capBase, height: capHeight, type: 1)
                     continue
                 }
                 if distance < canopyRadius {
@@ -245,7 +263,7 @@ private final class QRTreeMetalRenderer: NSObject, MTKViewDelegate {
                     // trunk emerge below the crown. This is real geometry,
                     // not a depth/opacity override, so leaves still conceal
                     // the upper trunk naturally.
-                    let frontTrunkWindow = distance < trunkRadius * 1.55 && Float(row + column) < center * 2 - 0.5
+                    let frontTrunkWindow = distance < trunkRadius * 1.35 && Float(row + column) < center * 2 - 0.5
                     if frontTrunkWindow { continue }
                     if !ornamental && fullness < 0.24 && pseudoRandom(column, row, 29) < 0.34 { continue }
                     let base = (34 + fullness * 25 + pseudoRandom(column, row, 7) * 10) * heightScale
