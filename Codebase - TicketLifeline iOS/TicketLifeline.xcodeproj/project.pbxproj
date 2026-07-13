@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		489EDE64C0295FF886C0EB16 /* QRTreeShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0DB75EC346F7A940600D47B1 /* QRTreeShaders.metal */; };
 		A55DCE70C018B93F0495EAB1 /* BarcodeCityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55DCE70C018B93F0495EAB0 /* BarcodeCityView.swift */; };
+		C17C1F000000000000000001 /* BarcodeCityShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = C17C1F000000000000000000 /* BarcodeCityShaders.metal */; };
 		4F951470E538A77A6AE112FE /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6DB76867DC0A62820E6E9CA /* Models.swift */; };
 		571270E6ED24C8C2215D56AF /* QRCodeImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC1A00B33B9DD27A214F5BB /* QRCodeImage.swift */; };
 		6EEC14A43470163C2D9695D5 /* VaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E221E4A4D02E27F5ACED4F /* VaultView.swift */; };
@@ -24,6 +25,7 @@
 		00FF1A9FE3E065688A627213 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0DB75EC346F7A940600D47B1 /* QRTreeShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = QRTreeShaders.metal; sourceTree = "<group>"; };
 		A55DCE70C018B93F0495EAB0 /* BarcodeCityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeCityView.swift; sourceTree = "<group>"; };
+		C17C1F000000000000000000 /* BarcodeCityShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = BarcodeCityShaders.metal; sourceTree = "<group>"; };
 		3226219E80B77ECC999152E4 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		54D0E72632CF69EB20139A71 /* TicketLifeline.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TicketLifeline.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		57ADBF98E2F51E5F823E440D /* CodeArtView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeArtView.swift; sourceTree = "<group>"; };
@@ -56,6 +58,7 @@
 		7EB7F58C89797C61493BE089 /* TicketLifeline */ = {
 			isa = PBXGroup;
 			children = (
+				C17C1F000000000000000000 /* BarcodeCityShaders.metal */,
 				A55DCE70C018B93F0495EAB0 /* BarcodeCityView.swift */,
 				57ADBF98E2F51E5F823E440D /* CodeArtView.swift */,
 				9B4DA3DEE03F9F9F78E3928C /* ConvexClient.swift */,
@@ -127,6 +130,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C17C1F000000000000000001 /* BarcodeCityShaders.metal in Sources */,
 				A55DCE70C018B93F0495EAB1 /* BarcodeCityView.swift in Sources */,
 				87AF89AF3FE2293ED1B1DF14 /* CodeArtView.swift in Sources */,
 				C46FE746F47658E496699E1F /* ConvexClient.swift in Sources */,
