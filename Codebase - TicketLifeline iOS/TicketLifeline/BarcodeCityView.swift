@@ -23,7 +23,8 @@ struct BarcodeCityView: UIViewRepresentable {
         view.isPaused = false
         view.enableSetNeedsDisplay = false
         view.isOpaque = true
-        view.backgroundColor = UIColor(red: 0.969, green: 0.980, blue: 0.988, alpha: 1)
+        view.backgroundColor = .white
+        view.clearColor = MTLClearColorMake(1, 1, 1, 1)
         if let renderer = BarcodeCityMetalRenderer(
             view: view,
             pattern: BarcodePattern(payload: code.payload),
@@ -118,10 +119,25 @@ private struct BarcodePattern {
 }
 
 private struct BarcodeSegmentGPU {
-    var start: Float
-    var width: Float
+    /// Exact Core Image barcode coordinates used by the flat endpoint.
+    var flatCenter: Float
+    var flatWidth: Float
+    /// Centered, normalized coordinates used only by the city endpoint.
+    var cityCenter: Float
+    var cityWidth: Float
     var palette: UInt32
     var kind: UInt32
+}
+
+private struct CityPropGPU {
+    var x: Float
+    var z: Float
+    var streetWidth: Float
+    /// 0 = car, 1 = traffic light.
+    var kind: UInt32
+    var palette: UInt32
+    /// 0 travels along a cross street; 1 travels along the avenue.
+    var direction: UInt32
 }
 
 private struct BarcodeUniforms {
@@ -130,18 +146,25 @@ private struct BarcodeUniforms {
     /// One is the top-down, scannable barcode; zero is the city.
     var flatness: Float
     var moduleCount: Float
-    var padding = SIMD4<Float>(repeating: 0)
+    var cityStreetWidth: Float
+    var cityHalfWidth: Float
+    var padding = SIMD2<Float>(repeating: 0)
 }
 
 private final class BarcodeCityMetalRenderer: NSObject, MTKViewDelegate {
     private let queue: MTLCommandQueue
     private let blocksPipeline: MTLRenderPipelineState
     private let roadPipeline: MTLRenderPipelineState
+    private let propsPipeline: MTLRenderPipelineState
     private let depthState: MTLDepthStencilState
     private let segmentsBuffer: MTLBuffer
+    private let propsBuffer: MTLBuffer
     private let uniformsBuffer: MTLBuffer
     private let segmentCount: Int
+    private let propCount: Int
     private let moduleCount: Float
+    private let cityStreetWidth: Float
+    private let cityHalfWidth: Float
     private let startTime = CACurrentMediaTime()
     private var lastTime = CACurrentMediaTime()
     private var rawProgress: Float
@@ -154,7 +177,9 @@ private final class BarcodeCityMetalRenderer: NSObject, MTKViewDelegate {
               let blockVertex = library.makeFunction(name: "barcodeCityBlockVertex"),
               let blockFragment = library.makeFunction(name: "barcodeCityBlockFragment"),
               let roadVertex = library.makeFunction(name: "barcodeCityRoadVertex"),
-              let roadFragment = library.makeFunction(name: "barcodeCityRoadFragment") else { return nil }
+              let roadFragment = library.makeFunction(name: "barcodeCityRoadFragment"),
+              let propsVertex = library.makeFunction(name: "barcodeCityPropsVertex"),
+              let propsFragment = library.makeFunction(name: "barcodeCityPropsFragment") else { return nil }
 
         func pipeline(vertex: MTLFunction, fragment: MTLFunction) throws -> MTLRenderPipelineState {
             let descriptor = MTLRenderPipelineDescriptor()
@@ -168,6 +193,7 @@ private final class BarcodeCityMetalRenderer: NSObject, MTKViewDelegate {
         do {
             blocksPipeline = try pipeline(vertex: blockVertex, fragment: blockFragment)
             roadPipeline = try pipeline(vertex: roadVertex, fragment: roadFragment)
+            propsPipeline = try pipeline(vertex: propsVertex, fragment: propsFragment)
         } catch {
             return nil
         }
@@ -178,17 +204,129 @@ private final class BarcodeCityMetalRenderer: NSObject, MTKViewDelegate {
         guard let depthState = device.makeDepthStencilState(descriptor: depth) else { return nil }
         self.depthState = depthState
 
-        let segments = pattern.runs.map {
-            BarcodeSegmentGPU(
-                start: Float($0.start),
-                width: Float($0.width),
-                palette: $0.palette,
-                kind: $0.isDark ? 1 : 0
+        // The city is deliberately allowed to rearrange the barcode runs,
+        // while the flat endpoint continues to use the literal CI positions.
+        // Every internal light run becomes one equal-width street; outer quiet
+        // zones collapse into white city margins instead of road end caps.
+        // City-only streets receive ample room for the small prop geometry;
+        // this never affects the literal Code 128 endpoint.
+        let cityStreetModules: Float = 18
+        let cityBuildingMultiplier: Float = 5
+        let flatSpan: Float = 1.55
+        let citySpan: Float = 1.78
+        let flatScale = flatSpan / Float(max(pattern.moduleCount, 1))
+        let lastIndex = pattern.runs.indices.last
+        let cityWeight = pattern.runs.enumerated().reduce(Float.zero) { total, item in
+            let (index, run) = item
+            let isQuietZone = !run.isDark && (index == 0 || index == lastIndex)
+            if isQuietZone { return total }
+            return total + (run.isDark ? Float(run.width) * cityBuildingMultiplier : cityStreetModules)
+        }
+        let cityScale = citySpan / max(cityWeight, 1)
+        let computedStreetWidth = cityStreetModules * cityScale
+        var cityCursor = -citySpan / 2
+        var streets: [(x: Float, width: Float)] = []
+        var segments: [BarcodeSegmentGPU] = []
+
+        for (index, run) in pattern.runs.enumerated() {
+            let isQuietZone = !run.isDark && (index == 0 || index == lastIndex)
+            let kind: UInt32 = run.isDark ? 1 : (isQuietZone ? 0 : 2)
+            let cityWidth = isQuietZone
+                ? Float.leastNonzeroMagnitude
+                : (run.isDark ? Float(run.width) * cityBuildingMultiplier : cityStreetModules) * cityScale
+            let cityCenter: Float
+            if isQuietZone {
+                cityCenter = index == 0 ? -citySpan / 2 : citySpan / 2
+            } else {
+                cityCenter = cityCursor + cityWidth / 2
+                cityCursor += cityWidth
+            }
+            let flatCenter = (Float(run.start) + Float(run.width) / 2 - Float(pattern.moduleCount) / 2) * flatScale
+            segments.append(
+                BarcodeSegmentGPU(
+                    flatCenter: flatCenter,
+                    flatWidth: Float(run.width) * flatScale,
+                    cityCenter: cityCenter,
+                    cityWidth: cityWidth,
+                    palette: run.palette,
+                    kind: kind
+                )
+            )
+            if kind == 2 { streets.append((cityCenter, cityWidth)) }
+        }
+
+        // A small, deterministic set keeps the streets charming rather than
+        // crowded. Cars and lights are generated from the actual street runs.
+        let carCount = min(8, streets.count)
+        var props: [CityPropGPU] = []
+        for slot in 0..<carCount {
+            let streetIndex = min(streets.count - 1, slot * streets.count / carCount)
+            let street = streets[streetIndex]
+            props.append(
+                CityPropGPU(
+                    x: street.x,
+                    z: 0.135 + Float(slot % 3) * 0.080,
+                    streetWidth: street.width,
+                    kind: 0,
+                    palette: UInt32(slot % 4),
+                    direction: 0
+                )
+            )
+            if slot.isMultiple(of: 2) {
+                props.append(
+                    CityPropGPU(
+                        x: street.x,
+                        z: 0.09 + street.width * 0.16,
+                        streetWidth: street.width,
+                        kind: 1,
+                        palette: 0,
+                        direction: 0
+                    )
+                )
+            }
+        }
+
+        // The avenue is a real second traffic direction, not empty scenery.
+        // Three cars occupy alternating lanes and two signals hang over it at
+        // deterministic cross-street junctions.
+        for slot in 0..<3 {
+            props.append(
+                CityPropGPU(
+                    x: -citySpan * 0.27 + Float(slot) * citySpan * 0.27,
+                    z: 0.09 + (slot.isMultiple(of: 2) ? -1 : 1) * computedStreetWidth * 0.16,
+                    streetWidth: computedStreetWidth,
+                    kind: 0,
+                    palette: UInt32((slot + 1) % 4),
+                    direction: 1
+                )
             )
         }
+        if streets.count >= 3 {
+            for fraction in 1...2 {
+                let street = streets[min(streets.count - 1, fraction * streets.count / 3)]
+                props.append(
+                    CityPropGPU(
+                        x: street.x,
+                        z: 0.09,
+                        streetWidth: computedStreetWidth,
+                        kind: 1,
+                        palette: 0,
+                        direction: 1
+                    )
+                )
+            }
+        }
+
+        let bufferProps = props.isEmpty
+            ? [CityPropGPU(x: 0, z: 0, streetWidth: 0, kind: 0, palette: 0, direction: 0)]
+            : props
         guard let segmentsBuffer = device.makeBuffer(
             bytes: segments,
             length: max(1, segments.count * MemoryLayout<BarcodeSegmentGPU>.stride),
+            options: .storageModeShared
+        ), let propsBuffer = device.makeBuffer(
+            bytes: bufferProps,
+            length: max(1, bufferProps.count * MemoryLayout<CityPropGPU>.stride),
             options: .storageModeShared
         ), let uniformsBuffer = device.makeBuffer(
             length: MemoryLayout<BarcodeUniforms>.stride,
@@ -197,9 +335,13 @@ private final class BarcodeCityMetalRenderer: NSObject, MTKViewDelegate {
 
         self.queue = queue
         self.segmentsBuffer = segmentsBuffer
+        self.propsBuffer = propsBuffer
         self.uniformsBuffer = uniformsBuffer
         segmentCount = segments.count
+        propCount = props.count
         moduleCount = Float(pattern.moduleCount)
+        cityStreetWidth = computedStreetWidth
+        cityHalfWidth = citySpan / 2
         rawProgress = initiallyFlat ? 1 : 0
         targetProgress = rawProgress
         super.init()
@@ -212,8 +354,7 @@ private final class BarcodeCityMetalRenderer: NSObject, MTKViewDelegate {
     func draw(in view: MTKView) {
         guard let descriptor = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
-              let command = queue.makeCommandBuffer(),
-              let encoder = command.makeRenderCommandEncoder(descriptor: descriptor) else { return }
+              let command = queue.makeCommandBuffer() else { return }
 
         let now = CACurrentMediaTime()
         let delta = Float(min(now - lastTime, 0.05))
@@ -223,19 +364,18 @@ private final class BarcodeCityMetalRenderer: NSObject, MTKViewDelegate {
         let flatness = rawProgress < 0.5
             ? 4 * rawProgress * rawProgress * rawProgress
             : 1 - pow(-2 * rawProgress + 2, 3) / 2
-        let cityAmount = 1 - flatness
-        descriptor.colorAttachments[0].clearColor = MTLClearColor(
-            red: Double(0.973 - cityAmount * 0.018),
-            green: Double(0.980 - cityAmount * 0.010),
-            blue: Double(0.988 - cityAmount * 0.028),
-            alpha: 1
-        )
+        // The artwork card stays clean white in both endpoints. All city
+        // depth comes from the road and building geometry, never a tinted sky.
+        descriptor.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1)
+        guard let encoder = command.makeRenderCommandEncoder(descriptor: descriptor) else { return }
 
         var uniforms = BarcodeUniforms(
             aspectRatio: Float(view.drawableSize.width / max(view.drawableSize.height, 1)),
             time: Float(now - startTime),
             flatness: flatness,
-            moduleCount: moduleCount
+            moduleCount: moduleCount,
+            cityStreetWidth: cityStreetWidth,
+            cityHalfWidth: cityHalfWidth
         )
         memcpy(uniformsBuffer.contents(), &uniforms, MemoryLayout<BarcodeUniforms>.stride)
 
@@ -248,6 +388,12 @@ private final class BarcodeCityMetalRenderer: NSObject, MTKViewDelegate {
         encoder.setRenderPipelineState(blocksPipeline)
         encoder.setVertexBuffer(segmentsBuffer, offset: 0, index: 1)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 36, instanceCount: segmentCount)
+
+        if propCount > 0 {
+            encoder.setRenderPipelineState(propsPipeline)
+            encoder.setVertexBuffer(propsBuffer, offset: 0, index: 1)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 144, instanceCount: propCount)
+        }
         encoder.endEncoding()
         command.present(drawable)
         command.commit()

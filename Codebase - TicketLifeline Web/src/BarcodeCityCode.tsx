@@ -1,4 +1,3 @@
-import { Building2, ScanBarcode } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type BarcodeCityCodeProps = {
@@ -6,110 +5,81 @@ type BarcodeCityCodeProps = {
 };
 
 type BarcodeViewMode = "barcode" | "city";
+type RunKind = "quiet" | "street" | "building";
+type Direction = "cross" | "avenue";
 type Point = { x: number; y: number };
-type BarRun = {
-  start: number;
-  width: number;
-  index: number;
-};
-type Building = BarRun & {
-  flatX0: number;
-  flatX1: number;
-  flatTop: number;
-  flatBottom: number;
-  cityX0: number;
-  cityX1: number;
-  cityTop: number;
-  cityBase: number;
-  depthX: number;
-  depthY: number;
-  spire: number;
-  palette: BuildingPalette;
-};
-type BuildingPalette = {
+type Point3 = { x: number; y: number; z: number };
+type Palette = {
   front: string;
-  shadow: string;
-  right: string;
+  side: string;
   roof: string;
-  edge: string;
   window: string;
-  glow: string;
+};
+type BarcodeRun = {
+  kind: RunKind;
+  index: number;
+  palette: number;
+  flatCenter: number;
+  flatWidth: number;
+  cityCenter: number;
+  cityWidth: number;
+  cityHeight: number;
+};
+type Street = { x: number; width: number };
+type CityProp = {
+  x: number;
+  z: number;
+  streetWidth: number;
+  kind: "car" | "signal";
+  palette: number;
+  direction: Direction;
+};
+type BarcodeLayout = {
+  runs: BarcodeRun[];
+  props: CityProp[];
+  streetWidth: number;
+  cityHalfWidth: number;
+};
+type RunGeometry = {
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+  height: number;
 };
 
 const canvasWidth = 360;
 const canvasHeight = 310;
-const quietModules = 12;
-const buildingPalettes: BuildingPalette[] = [
-  {
-    front: "#1f2937",
-    shadow: "#111827",
-    right: "#374151",
-    roof: "#4b5563",
-    edge: "#94a3b8",
-    window: "#fbbf24",
-    glow: "#fde68a",
-  },
-  {
-    front: "#164e63",
-    shadow: "#0f3b49",
-    right: "#236b7d",
-    roof: "#2f8799",
-    edge: "#67e8f9",
-    window: "#a7f3d0",
-    glow: "#ccfbf1",
-  },
-  {
-    front: "#312e81",
-    shadow: "#1e1b4b",
-    right: "#4338ca",
-    roof: "#5b55d6",
-    edge: "#c4b5fd",
-    window: "#c4b5fd",
-    glow: "#ddd6fe",
-  },
-  {
-    front: "#7c2d12",
-    shadow: "#431407",
-    right: "#9a3412",
-    roof: "#c2410c",
-    edge: "#fed7aa",
-    window: "#fed7aa",
-    glow: "#ffedd5",
-  },
+const quietModules = 8;
+const flatSpan = 1.55;
+const flatDepth = 0.56;
+const citySpan = 1.78;
+const cityStreetModules = 18;
+const cityBuildingMultiplier = 5;
+const roadCenter = 0.09;
+const asphalt = "#868e96";
+const paleBarcode = "#eef1f4";
+const whiteMarking = "#f5f7fa";
+const buildingPalettes: Palette[] = [
+  { front: "#1f2937", side: "#37404d", roof: "#4b5563", window: "#ebc75f" },
+  { front: "#164e63", side: "#143b49", roof: "#2f8799", window: "#a7f3d0" },
+  { front: "#312e81", side: "#1e1b4b", roof: "#5b55d6", window: "#ebc75f" },
+  { front: "#7c2d12", side: "#431407", roof: "#c2410d", window: "#fed7aa" },
 ];
+const carColors = ["#eb4a31", "#29aaa0", "#476dee", "#f28724"];
 
 export function BarcodeCityCode({ binary }: BarcodeCityCodeProps) {
   const [mode, setMode] = useState<BarcodeViewMode>("barcode");
 
   return (
     <div className="barcode-city-code">
-      <div className="qr-mode-toggle" role="group" aria-label="Barcode view">
-        <button
-          type="button"
-          className={mode === "barcode" ? "active" : ""}
-          onClick={() => setMode("barcode")}
-          title="Top barcode scan view"
-          aria-pressed={mode === "barcode"}
-        >
-          <ScanBarcode size={15} />
-          <span>Scan</span>
-        </button>
-        <button
-          type="button"
-          className={mode === "city" ? "active" : ""}
-          onClick={() => setMode("city")}
-          title="3D city street view"
-          aria-pressed={mode === "city"}
-        >
-          <Building2 size={15} />
-          <span>City</span>
-        </button>
-      </div>
       <button
         type="button"
         className={`barcode-artboard ${mode}`}
         onClick={() => setMode((current) => (current === "barcode" ? "city" : "barcode"))}
-        aria-label={mode === "barcode" ? "Show 3D city view" : "Show top barcode scan view"}
+        aria-label={mode === "barcode" ? "Show barcode streetscape" : "Show scannable barcode"}
+        aria-pressed={mode === "city"}
+        title="Tap to switch between the barcode and streetscape"
       >
         <AnimatedBarcodeCityCanvas binary={binary} targetMode={mode} />
       </button>
@@ -124,22 +94,24 @@ function AnimatedBarcodeCityCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef<number | null>(null);
   const progressRef = useRef(targetMode === "city" ? 1 : 0);
-  const runs = useMemo(() => createRuns(binary), [binary]);
+  const layout = useMemo(() => createBarcodeLayout(binary), [binary]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const drawingCanvas = canvas;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const targetProgress = targetMode === "city" ? 1 : 0;
     let previousTime = performance.now();
 
-    if (animationRef.current) {
+    if (animationRef.current !== null) {
       cancelAnimationFrame(animationRef.current);
     }
 
+    drawBarcodeCity(drawingCanvas, layout, easeInOutCubic(progressRef.current));
+
     function renderFrame(time: number) {
-      if (!canvas) return;
       const deltaSeconds = Math.min(0.04, (time - previousTime) / 1000);
       previousTime = time;
 
@@ -153,7 +125,7 @@ function AnimatedBarcodeCityCanvas({
         }
       }
 
-      drawBarcodeCity(canvas, binary, runs, easeInOutCubic(progressRef.current));
+      drawBarcodeCity(drawingCanvas, layout, easeInOutCubic(progressRef.current));
 
       if (progressRef.current !== targetProgress) {
         animationRef.current = requestAnimationFrame(renderFrame);
@@ -163,11 +135,11 @@ function AnimatedBarcodeCityCanvas({
     animationRef.current = requestAnimationFrame(renderFrame);
 
     return () => {
-      if (animationRef.current) {
+      if (animationRef.current !== null) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [binary, runs, targetMode]);
+  }, [layout, targetMode]);
 
   return (
     <span className="barcode-city-stage">
@@ -182,533 +154,540 @@ function AnimatedBarcodeCityCanvas({
   );
 }
 
-function drawBarcodeCity(
-  canvas: HTMLCanvasElement,
-  binary: string,
-  runs: BarRun[],
-  progress: number,
-) {
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(canvasWidth * dpr);
-  canvas.height = Math.round(canvasHeight * dpr);
-
-  const context = canvas.getContext("2d");
-  if (!context) return;
-
-  context.setTransform(dpr, 0, 0, dpr, 0, 0);
-  context.clearRect(0, 0, canvasWidth, canvasHeight);
-  context.imageSmoothingEnabled = false;
-
-  const metrics = createBarcodeMetrics(binary.length);
-  drawBarcodeBackdrop(context, progress, metrics);
-
-  const cityOpacity = smoothstep(0.02, 0.22, progress);
-  if (cityOpacity > 0) {
-    context.save();
-    context.globalAlpha = cityOpacity;
-    drawCityScene(context, runs, metrics, progress);
-    context.restore();
-  }
-
-  const flatOpacity = 1 - smoothstep(0.08, 0.38, progress);
-  if (flatOpacity > 0) {
-    context.save();
-    context.globalAlpha = flatOpacity;
-    drawFlatBarcode(context, binary, metrics, progress);
-    context.restore();
-  }
-}
-
-function drawBarcodeBackdrop(
-  context: CanvasRenderingContext2D,
-  progress: number,
-  metrics: ReturnType<typeof createBarcodeMetrics>,
-) {
-  const gradient = context.createLinearGradient(0, 0, 0, canvasHeight);
-  gradient.addColorStop(0, mixColor("#ffffff", "#f7fbff", progress));
-  gradient.addColorStop(0.56, mixColor("#ffffff", "#eef5f2", progress));
-  gradient.addColorStop(1, mixColor("#f8fafc", "#d9ddd7", progress));
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, canvasWidth, canvasHeight);
-
-  if (progress <= 0.04) return;
-
-  context.save();
-  context.globalAlpha = smoothstep(0.05, 0.62, progress);
-
-  const horizon = 196;
-  context.fillStyle = "#d8dfdc";
-  context.fillRect(0, horizon, canvasWidth, canvasHeight - horizon);
-
-  const road = [
-    { x: metrics.flatX - 16, y: metrics.cityBaseLeft + 16 },
-    { x: metrics.flatX + metrics.flatWidth + 22, y: metrics.cityBaseRight + 10 },
-    { x: canvasWidth + 42, y: canvasHeight },
-    { x: -42, y: canvasHeight },
+function createBarcodeLayout(binary: string): BarcodeLayout {
+  const sourceRuns: Array<{ width: number; dark: boolean; quiet: boolean }> = [
+    { width: quietModules, dark: false, quiet: true },
   ];
-  context.fillStyle = "#48515f";
-  drawPolygon(context, road, false);
+  let cursor = 0;
 
-  context.strokeStyle = "rgba(255, 255, 255, 0.52)";
-  context.lineWidth = 2;
-  for (let index = 0; index < 7; index++) {
-    const x = metrics.flatX + 10 + index * 48;
-    context.beginPath();
-    context.moveTo(x, 259 - index * 1.8);
-    context.lineTo(x + 20, 269 + index * 2.4);
-    context.stroke();
+  while (cursor < binary.length) {
+    const start = cursor;
+    const dark = binary[cursor] === "1";
+    while (cursor < binary.length && binary[cursor] === binary[start]) cursor++;
+    sourceRuns.push({ width: cursor - start, dark, quiet: false });
   }
+  sourceRuns.push({ width: quietModules, dark: false, quiet: true });
 
-  const sidewalk = [
-    { x: metrics.flatX - 5, y: metrics.cityBaseLeft + 4 },
-    { x: metrics.flatX + metrics.flatWidth + 3, y: metrics.cityBaseRight - 4 },
-    { x: metrics.flatX + metrics.flatWidth + 20, y: metrics.cityBaseRight + 14 },
-    { x: metrics.flatX - 18, y: metrics.cityBaseLeft + 22 },
-  ];
-  context.fillStyle = "#c6beb0";
-  drawPolygon(context, sidewalk, false);
-  context.strokeStyle = "rgba(67, 56, 45, 0.24)";
-  context.lineWidth = 1;
-  context.beginPath();
-  context.moveTo(sidewalk[0].x, sidewalk[0].y);
-  context.lineTo(sidewalk[1].x, sidewalk[1].y);
-  context.stroke();
+  const totalModules = binary.length + quietModules * 2;
+  const flatScale = flatSpan / Math.max(1, totalModules);
+  const cityWeight = sourceRuns.reduce((total, run) => {
+    if (run.quiet) return total;
+    return total + (run.dark ? run.width * cityBuildingMultiplier : cityStreetModules);
+  }, 0);
+  const cityScale = citySpan / Math.max(1, cityWeight);
+  const streetWidth = cityStreetModules * cityScale;
+  const streets: Street[] = [];
+  const runs: BarcodeRun[] = [];
+  let flatCursor = -flatSpan / 2;
+  let cityCursor = -citySpan / 2;
+  let buildingIndex = 0;
 
-  context.restore();
-}
+  for (const source of sourceRuns) {
+    const kind: RunKind = source.quiet ? "quiet" : source.dark ? "building" : "street";
+    const flatWidth = source.width * flatScale;
+    const cityWidth = source.quiet
+      ? 0.0001
+      : (source.dark ? source.width * cityBuildingMultiplier : cityStreetModules) * cityScale;
+    const cityCenter = source.quiet
+      ? cityCursor
+      : cityCursor + cityWidth / 2;
+    const palette = source.dark ? buildingIndex % buildingPalettes.length : 0;
+    const cityHeight = source.dark
+      ? 0.31 + Math.min(0.3, flatWidth * 6) + pseudoRandom(buildingIndex, source.width, 17) * 0.23
+      : kind === "street"
+        ? 0.012
+        : 0.001;
 
-function drawFlatBarcode(
-  context: CanvasRenderingContext2D,
-  binary: string,
-  metrics: ReturnType<typeof createBarcodeMetrics>,
-  progress: number,
-) {
-  context.save();
-  context.shadowColor = `rgba(15, 23, 42, ${0.13 * (1 - progress)})`;
-  context.shadowBlur = 20 * (1 - progress);
-  context.shadowOffsetY = 10 * (1 - progress);
-  context.fillStyle = "#ffffff";
-  drawRoundedRect(
-    context,
-    metrics.flatX,
-    metrics.flatY,
-    metrics.flatWidth,
-    metrics.flatHeight,
-    7,
-  );
-  context.restore();
+    runs.push({
+      kind,
+      index: source.dark ? buildingIndex : runs.length,
+      palette,
+      flatCenter: flatCursor + flatWidth / 2,
+      flatWidth,
+      cityCenter,
+      cityWidth,
+      cityHeight,
+    });
 
-  context.fillStyle = "#ffffff";
-  context.fillRect(
-    metrics.barX - quietModules * metrics.module,
-    metrics.barY,
-    metrics.flatWidth,
-    metrics.barHeight,
-  );
-
-  context.fillStyle = "#111827";
-  for (let index = 0; index < binary.length; index++) {
-    if (binary[index] !== "1") continue;
-    const x = metrics.barX + index * metrics.module;
-    context.fillRect(x, metrics.barY, Math.max(metrics.module, 0.55), metrics.barHeight);
+    flatCursor += flatWidth;
+    if (!source.quiet) cityCursor += cityWidth;
+    if (kind === "street") streets.push({ x: cityCenter, width: cityWidth });
+    if (source.dark) buildingIndex++;
   }
-
-  context.strokeStyle = "rgba(15, 23, 42, 0.08)";
-  context.lineWidth = 1;
-  drawRoundedRect(
-    context,
-    metrics.flatX + 0.5,
-    metrics.flatY + 0.5,
-    metrics.flatWidth - 1,
-    metrics.flatHeight - 1,
-    7,
-    true,
-  );
-}
-
-function drawCityScene(
-  context: CanvasRenderingContext2D,
-  runs: BarRun[],
-  metrics: ReturnType<typeof createBarcodeMetrics>,
-  progress: number,
-) {
-  const buildings = runs.map((run) => createBuilding(run, metrics));
-
-  context.save();
-  context.globalAlpha *= smoothstep(0.12, 0.72, progress) * 0.34;
-  for (const building of buildings) {
-    drawBuildingShadow(context, building, progress);
-  }
-  context.restore();
-
-  buildings
-    .sort((a, b) => a.cityBase - b.cityBase || a.cityX0 - b.cityX0)
-    .forEach((building) => drawBuilding(context, building, progress));
-}
-
-function createBuilding(
-  run: BarRun,
-  metrics: ReturnType<typeof createBarcodeMetrics>,
-): Building {
-  const centerModule = run.start + run.width / 2;
-  const norm = centerModule / Math.max(1, metrics.bitLength);
-  const palette = buildingPalettes[run.index % buildingPalettes.length];
-  const laneBase = lerp(metrics.cityBaseLeft, metrics.cityBaseRight, norm);
-  const rawFootprintWidth = run.width * metrics.cityModule;
-  const footprintWidth = Math.max(3.2, rawFootprintWidth * 1.16);
-  const centerX = metrics.cityBarX + centerModule * metrics.cityModule;
-  const height =
-    (68 + run.width * 8.5 + pseudoRandom(run.index, run.width, 3) * 72) *
-    (1.04 - norm * 0.13);
-  const depth = (9 + Math.min(22, footprintWidth * 1.55)) * (0.92 + norm * 0.24);
-  const spire =
-    height > 104 && pseudoRandom(run.index, run.width, 71) > 0.62
-      ? 5 + pseudoRandom(run.index, run.width, 73) * 9
-      : 0;
 
   return {
-    ...run,
-    flatX0: metrics.barX + run.start * metrics.module,
-    flatX1: metrics.barX + (run.start + run.width) * metrics.module,
-    flatTop: metrics.barY,
-    flatBottom: metrics.barY + metrics.barHeight,
-    cityX0: centerX - footprintWidth / 2,
-    cityX1: centerX + footprintWidth / 2,
-    cityTop: Math.max(34, laneBase - height),
-    cityBase: laneBase,
-    depthX: depth,
-    depthY: -7 - norm * 7,
-    spire,
-    palette,
+    runs,
+    props: createCityProps(streets, streetWidth),
+    streetWidth,
+    cityHalfWidth: citySpan / 2,
   };
 }
 
-function drawBuildingShadow(
-  context: CanvasRenderingContext2D,
-  building: Building,
-  progress: number,
-) {
-  const x0 = lerp(building.flatX0, building.cityX0, progress);
-  const x1 = lerp(building.flatX1, building.cityX1, progress);
-  const base = lerp(building.flatBottom, building.cityBase, progress);
-  const length = (18 + building.width * 4) * progress;
+function createCityProps(streets: Street[], streetWidth: number) {
+  const props: CityProp[] = [];
+  const carCount = Math.min(8, streets.length);
 
-  context.fillStyle = "#111827";
-  context.beginPath();
-  context.moveTo(x0 - 1, base + 1);
-  context.lineTo(x1 + 1, base + 1);
-  context.lineTo(x1 + length, base + 14 + length * 0.16);
-  context.lineTo(x0 + length * 0.44, base + 11 + length * 0.12);
-  context.closePath();
-  context.fill();
-}
-
-function drawBuilding(
-  context: CanvasRenderingContext2D,
-  building: Building,
-  progress: number,
-) {
-  const front = getBuildingFrontPoints(building, progress);
-  const offset = {
-    x: building.depthX * smoothstep(0.14, 1, progress),
-    y: building.depthY * smoothstep(0.14, 1, progress),
-  };
-  const palette = building.palette;
-
-  context.strokeStyle = `rgba(8, 13, 23, ${0.08 + progress * 0.12})`;
-  context.lineWidth = 0.65;
-
-  if (progress > 0.12) {
-    const sideGradient = context.createLinearGradient(
-      front[1].x,
-      front[1].y,
-      front[1].x + offset.x,
-      front[1].y + offset.y,
-    );
-    sideGradient.addColorStop(0, palette.shadow);
-    sideGradient.addColorStop(1, palette.right);
-    context.fillStyle = sideGradient;
-    drawPolygon(context, [
-      front[1],
-      { x: front[1].x + offset.x, y: front[1].y + offset.y },
-      { x: front[2].x + offset.x, y: front[2].y + offset.y },
-      front[2],
-    ]);
-
-    const roofGradient = context.createLinearGradient(
-      front[0].x,
-      front[0].y,
-      front[1].x + offset.x,
-      front[1].y + offset.y,
-    );
-    roofGradient.addColorStop(0, palette.edge);
-    roofGradient.addColorStop(0.34, palette.roof);
-    roofGradient.addColorStop(1, palette.shadow);
-    context.fillStyle = roofGradient;
-    drawPolygon(context, [
-      front[0],
-      { x: front[0].x + offset.x, y: front[0].y + offset.y },
-      { x: front[1].x + offset.x, y: front[1].y + offset.y },
-      front[1],
-    ]);
-    drawRoofLines(context, front, offset, building, progress);
-  }
-
-  const frontGradient = context.createLinearGradient(front[0].x, front[0].y, front[3].x, front[3].y);
-  frontGradient.addColorStop(0, mixColor("#111827", palette.front, progress));
-  frontGradient.addColorStop(0.68, mixColor("#111827", palette.front, progress));
-  frontGradient.addColorStop(1, mixColor("#111827", palette.shadow, progress));
-  context.fillStyle = frontGradient;
-  drawPolygon(context, front);
-  drawFacadeDetails(context, building, front, offset, progress);
-}
-
-function drawRoofLines(
-  context: CanvasRenderingContext2D,
-  front: Point[],
-  offset: Point,
-  building: Building,
-  progress: number,
-) {
-  const detailOpacity = smoothstep(0.36, 0.9, progress);
-  if (detailOpacity <= 0) return;
-
-  context.save();
-  context.globalAlpha *= detailOpacity;
-  context.strokeStyle = colorWithAlpha(building.palette.edge, 0.44);
-  context.lineWidth = 0.7;
-  context.beginPath();
-  context.moveTo(front[0].x + offset.x * 0.24, front[0].y + offset.y * 0.24);
-  context.lineTo(front[1].x + offset.x * 0.24, front[1].y + offset.y * 0.24);
-  context.moveTo(front[1].x + offset.x * 0.52, front[1].y + offset.y * 0.52);
-  context.lineTo(front[1].x, front[1].y);
-  context.stroke();
-
-  if (building.spire > 0) {
-    const roofCenterX = (front[0].x + front[1].x + offset.x) / 2;
-    const roofCenterY = (front[0].y + front[1].y + offset.y) / 2;
-    context.strokeStyle = colorWithAlpha(building.palette.shadow, 0.72);
-    context.lineWidth = 1.1;
-    context.beginPath();
-    context.moveTo(roofCenterX, roofCenterY);
-    context.lineTo(roofCenterX + 1.3, roofCenterY - building.spire * progress);
-    context.stroke();
-  }
-
-  context.restore();
-}
-
-function drawFacadeDetails(
-  context: CanvasRenderingContext2D,
-  building: Building,
-  front: Point[],
-  offset: Point,
-  progress: number,
-) {
-  const opacity = smoothstep(0.38, 0.92, progress);
-  if (opacity <= 0) return;
-
-  const width = front[1].x - front[0].x;
-  const height = front[2].y - front[1].y;
-  if (width < 2 || height < 28) return;
-
-  context.save();
-  context.globalAlpha *= opacity;
-
-  context.strokeStyle = colorWithAlpha(building.palette.edge, 0.42);
-  context.lineWidth = 0.8;
-  context.beginPath();
-  context.moveTo(front[1].x - 0.5, front[1].y + 2);
-  context.lineTo(front[2].x - 0.5, front[2].y - 3);
-  context.stroke();
-
-  const columns = Math.max(1, Math.min(3, Math.floor(width / 4.6)));
-  const rows = Math.max(3, Math.min(10, Math.floor(height / 12)));
-  const padX = Math.max(0.8, width * 0.18);
-  const padTop = Math.max(8, height * 0.1);
-  const usableWidth = Math.max(1, width - padX * 2);
-  const cellW = Math.max(0.85, Math.min(2.6, usableWidth / Math.max(1, columns * 1.7)));
-  const cellH = Math.max(1.5, Math.min(3, height / 45));
-
-  context.fillStyle = building.palette.window;
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < columns; col++) {
-      if (pseudoRandom(building.index + col, row, 31) < 0.2) continue;
-      const x = front[0].x + padX + col * (usableWidth / columns);
-      const y = front[0].y + padTop + row * ((height - padTop - 10) / rows);
-      context.fillRect(x, y, cellW, cellH);
-    }
-  }
-
-  drawSideWindows(context, building, front, offset, height);
-  drawVerticalMullions(context, building, front, width, height);
-
-  if (width > 5.5 && pseudoRandom(building.index, building.width, 37) > 0.46) {
-    context.globalAlpha *= 0.7;
-    context.fillStyle = building.palette.glow;
-    context.fillRect(front[0].x + width * 0.18, front[2].y - 12, width * 0.44, 5);
-  }
-
-  context.restore();
-}
-
-function drawSideWindows(
-  context: CanvasRenderingContext2D,
-  building: Building,
-  front: Point[],
-  offset: Point,
-  height: number,
-) {
-  if (offset.x < 4 || height < 42) return;
-
-  const rows = Math.max(3, Math.min(8, Math.floor(height / 15)));
-  context.save();
-  context.globalAlpha *= 0.62;
-  context.strokeStyle = colorWithAlpha(building.palette.glow, 0.7);
-  context.lineWidth = 0.85;
-
-  for (let row = 0; row < rows; row++) {
-    if (pseudoRandom(building.index, row, 89) < 0.26) continue;
-    const y = front[1].y + 11 + row * ((height - 22) / rows);
-    context.beginPath();
-    context.moveTo(front[1].x + offset.x * 0.22, y + offset.y * 0.12);
-    context.lineTo(front[1].x + offset.x * 0.82, y + offset.y * 0.34);
-    context.stroke();
-  }
-
-  context.restore();
-}
-
-function drawVerticalMullions(
-  context: CanvasRenderingContext2D,
-  building: Building,
-  front: Point[],
-  width: number,
-  height: number,
-) {
-  if (width < 4.8 || height < 52) return;
-
-  const mullions = Math.min(2, Math.floor(width / 6));
-  context.save();
-  context.globalAlpha *= 0.26;
-  context.strokeStyle = building.palette.shadow;
-  context.lineWidth = 0.7;
-
-  for (let index = 1; index <= mullions; index++) {
-    const x = front[0].x + (width * index) / (mullions + 1);
-    context.beginPath();
-    context.moveTo(x, front[0].y + 7);
-    context.lineTo(x, front[3].y - 5);
-    context.stroke();
-  }
-
-  context.restore();
-}
-
-function getBuildingFrontPoints(building: Building, progress: number): Point[] {
-  const x0 = lerp(building.flatX0, building.cityX0, progress);
-  const x1 = lerp(building.flatX1, building.cityX1, progress);
-  const top = lerp(building.flatTop, building.cityTop, progress);
-  const bottom = lerp(building.flatBottom, building.cityBase, progress);
-
-  return [
-    { x: x0, y: top },
-    { x: x1, y: top },
-    { x: x1, y: bottom },
-    { x: x0, y: bottom },
-  ];
-}
-
-function createBarcodeMetrics(bitLength: number) {
-  const flatWidth = Math.min(316, canvasWidth - 44);
-  const flatHeight = 136;
-  const totalModules = bitLength + quietModules * 2;
-  const module = flatWidth / totalModules;
-  const cityWidth = Math.min(304, canvasWidth - 56);
-  const cityModule = cityWidth / totalModules;
-
-  return {
-    bitLength,
-    flatWidth,
-    flatHeight,
-    flatX: (canvasWidth - flatWidth) / 2,
-    flatY: (canvasHeight - flatHeight) / 2,
-    module,
-    barX: (canvasWidth - flatWidth) / 2 + quietModules * module,
-    barY: (canvasHeight - flatHeight) / 2 + 24,
-    barHeight: flatHeight - 48,
-    cityModule,
-    cityBarX: (canvasWidth - cityWidth) / 2 + quietModules * cityModule,
-    cityBaseLeft: 235,
-    cityBaseRight: 215,
-  };
-}
-
-function createRuns(binary: string): BarRun[] {
-  const runs: BarRun[] = [];
-  let index = 0;
-
-  while (index < binary.length) {
-    const dark = binary[index] === "1";
-    const start = index;
-    while (index < binary.length && binary[index] === binary[start]) {
-      index++;
-    }
-
-    if (dark) {
-      runs.push({
-        start,
-        width: index - start,
-        index: runs.length,
+  for (let slot = 0; slot < carCount; slot++) {
+    const street = streets[Math.min(streets.length - 1, Math.floor((slot * streets.length) / carCount))];
+    props.push({
+      x: street.x,
+      z: 0.145 + (slot % 3) * 0.078,
+      streetWidth: street.width,
+      kind: "car",
+      palette: slot % carColors.length,
+      direction: "cross",
+    });
+    if (slot % 2 === 0) {
+      props.push({
+        x: street.x,
+        z: roadCenter + street.width * 0.16,
+        streetWidth: street.width,
+        kind: "signal",
+        palette: 0,
+        direction: "cross",
       });
     }
   }
 
-  return runs;
+  for (let slot = 0; slot < 3; slot++) {
+    props.push({
+      x: -citySpan * 0.27 + slot * citySpan * 0.27,
+      z: roadCenter + (slot % 2 === 0 ? -1 : 1) * streetWidth * 0.16,
+      streetWidth,
+      kind: "car",
+      palette: (slot + 1) % carColors.length,
+      direction: "avenue",
+    });
+  }
+
+  if (streets.length >= 3) {
+    for (let fraction = 1; fraction <= 2; fraction++) {
+      const street = streets[Math.min(streets.length - 1, Math.floor((fraction * streets.length) / 3))];
+      props.push({
+        x: street.x,
+        z: roadCenter,
+        streetWidth,
+        kind: "signal",
+        palette: 0,
+        direction: "avenue",
+      });
+    }
+  }
+
+  return props;
+}
+
+function drawBarcodeCity(canvas: HTMLCanvasElement, layout: BarcodeLayout, progress: number) {
+  const context = prepareCanvas(canvas);
+  if (!context) return;
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  if (progress < 0.001) {
+    drawExactFlatBarcode(context, layout);
+    return;
+  }
+
+  // Keep the avenue behind the still-flat bars so it cannot flash across the
+  // scannable endpoint. Once the city has risen, blend a foreground pass in
+  // so the nearer avenue correctly meets every cross street and facade.
+  drawAvenue(context, layout, progress);
+
+  const roadRuns = layout.runs.filter((run) => run.kind !== "building");
+  for (const run of roadRuns) {
+    drawRunSurface(context, run, layout, progress);
+  }
+  for (const run of roadRuns) {
+    if (run.kind === "street") drawCrossStreetMarkings(context, run, layout, progress);
+  }
+
+  const buildings = layout.runs.filter((run) => run.kind === "building").reverse();
+  for (const run of buildings) {
+    drawBuilding(context, run, layout, progress);
+  }
+
+  const foregroundRoadAmount = smoothstep(0.66, 0.94, progress);
+  if (foregroundRoadAmount > 0) {
+    context.save();
+    context.globalAlpha = foregroundRoadAmount;
+    drawAvenue(context, layout, progress);
+    context.restore();
+  }
+
+  drawProps(context, layout, progress);
+}
+
+function prepareCanvas(canvas: HTMLCanvasElement) {
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.round(canvasWidth * dpr);
+  const height = Math.round(canvasHeight * dpr);
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.setTransform(dpr, 0, 0, dpr, 0, 0);
+  context.clearRect(0, 0, canvasWidth, canvasHeight);
+  context.imageSmoothingEnabled = false;
+  return context;
+}
+
+function drawExactFlatBarcode(context: CanvasRenderingContext2D, layout: BarcodeLayout) {
+  const scaleX = 196;
+  const scaleY = 185;
+  const left = canvasWidth / 2 - (flatSpan * scaleX) / 2;
+  const top = canvasHeight / 2 - (flatDepth * scaleY) / 2;
+  const height = flatDepth * scaleY;
+
+  context.fillStyle = paleBarcode;
+  context.fillRect(Math.floor(left), Math.floor(top), Math.ceil(flatSpan * scaleX), Math.ceil(height));
+
+  for (const run of layout.runs) {
+    if (run.kind !== "building") continue;
+    const x = canvasWidth / 2 + (run.flatCenter - run.flatWidth / 2) * scaleX;
+    context.fillStyle = buildingPalettes[run.palette].front;
+    context.fillRect(Math.floor(x), Math.floor(top), Math.ceil(run.flatWidth * scaleX), Math.ceil(height));
+  }
+}
+
+function drawAvenue(
+  context: CanvasRenderingContext2D,
+  layout: BarcodeLayout,
+  progress: number,
+) {
+  const roadVisibility = smoothstep(0.34, 0.78, progress);
+  if (roadVisibility <= 0) return;
+  const roadAmount = smoothstep(0.25, 0.9, progress);
+  const roadHeight = lerp(0, 0.012, smoothstep(0.28, 0.82, progress));
+  const halfStreet = layout.streetWidth / 2;
+
+  context.save();
+  context.globalAlpha *= roadVisibility;
+  drawWorldQuad(
+    context,
+    [
+      { x: -layout.cityHalfWidth, y: roadHeight, z: roadCenter - halfStreet },
+      { x: layout.cityHalfWidth, y: roadHeight, z: roadCenter - halfStreet },
+      { x: layout.cityHalfWidth, y: roadHeight, z: roadCenter + halfStreet },
+      { x: -layout.cityHalfWidth, y: roadHeight, z: roadCenter + halfStreet },
+    ],
+    progress,
+    mixColor("#ffffff", asphalt, roadAmount),
+  );
+
+  const markingAmount = smoothstep(0.52, 0.92, progress);
+  if (markingAmount > 0) {
+    context.globalAlpha *= markingAmount;
+    const lineHalfWidth = layout.streetWidth * 0.13;
+    for (let x = -layout.cityHalfWidth; x < layout.cityHalfWidth; x += 0.15) {
+      drawWorldQuad(
+        context,
+        [
+          { x, y: roadHeight + 0.001, z: roadCenter - lineHalfWidth },
+          { x: Math.min(layout.cityHalfWidth, x + 0.075), y: roadHeight + 0.001, z: roadCenter - lineHalfWidth },
+          { x: Math.min(layout.cityHalfWidth, x + 0.075), y: roadHeight + 0.001, z: roadCenter + lineHalfWidth },
+          { x, y: roadHeight + 0.001, z: roadCenter + lineHalfWidth },
+        ],
+        progress,
+        whiteMarking,
+      );
+    }
+  }
+  context.restore();
+}
+
+function drawRunSurface(
+  context: CanvasRenderingContext2D,
+  run: BarcodeRun,
+  layout: BarcodeLayout,
+  progress: number,
+) {
+  const geometry = getRunGeometry(run, layout, progress);
+  const roadAmount = smoothstep(0.25, 0.9, progress);
+  const fill = run.kind === "quiet"
+    ? mixColor(paleBarcode, "#ffffff", progress)
+    : mixColor(paleBarcode, asphalt, roadAmount);
+
+  drawWorldQuad(
+    context,
+    [
+      { x: geometry.x0, y: geometry.height, z: geometry.z0 },
+      { x: geometry.x1, y: geometry.height, z: geometry.z0 },
+      { x: geometry.x1, y: geometry.height, z: geometry.z1 },
+      { x: geometry.x0, y: geometry.height, z: geometry.z1 },
+    ],
+    progress,
+    fill,
+  );
+}
+
+function drawCrossStreetMarkings(
+  context: CanvasRenderingContext2D,
+  run: BarcodeRun,
+  layout: BarcodeLayout,
+  progress: number,
+) {
+  const markingAmount = smoothstep(0.52, 0.92, progress);
+  if (markingAmount <= 0) return;
+  const geometry = getRunGeometry(run, layout, progress);
+  const lineHalfWidth = (geometry.x1 - geometry.x0) * 0.13;
+  const centerX = (geometry.x0 + geometry.x1) / 2;
+
+  context.save();
+  context.globalAlpha = markingAmount;
+  for (let z = geometry.z0 + layout.streetWidth * 0.72; z < geometry.z1; z += 0.15) {
+    drawWorldQuad(
+      context,
+      [
+        { x: centerX - lineHalfWidth, y: geometry.height + 0.001, z },
+        { x: centerX + lineHalfWidth, y: geometry.height + 0.001, z },
+        { x: centerX + lineHalfWidth, y: geometry.height + 0.001, z: Math.min(geometry.z1, z + 0.075) },
+        { x: centerX - lineHalfWidth, y: geometry.height + 0.001, z: Math.min(geometry.z1, z + 0.075) },
+      ],
+      progress,
+      whiteMarking,
+    );
+  }
+  context.restore();
+}
+
+function drawBuilding(
+  context: CanvasRenderingContext2D,
+  run: BarcodeRun,
+  layout: BarcodeLayout,
+  progress: number,
+) {
+  const geometry = getRunGeometry(run, layout, progress);
+  const palette = buildingPalettes[run.palette];
+  const topNearLeft = projectPoint({ x: geometry.x0, y: geometry.height, z: geometry.z0 }, progress);
+  const topNearRight = projectPoint({ x: geometry.x1, y: geometry.height, z: geometry.z0 }, progress);
+  const topFarRight = projectPoint({ x: geometry.x1, y: geometry.height, z: geometry.z1 }, progress);
+  const topFarLeft = projectPoint({ x: geometry.x0, y: geometry.height, z: geometry.z1 }, progress);
+  const baseNearLeft = projectPoint({ x: geometry.x0, y: 0, z: geometry.z0 }, progress);
+  const baseNearRight = projectPoint({ x: geometry.x1, y: 0, z: geometry.z0 }, progress);
+  const baseFarLeft = projectPoint({ x: geometry.x0, y: 0, z: geometry.z1 }, progress);
+  const cityAmount = smoothstep(0.08, 0.72, progress);
+
+  context.strokeStyle = `rgba(7, 12, 20, ${0.04 + cityAmount * 0.1})`;
+  context.lineWidth = 0.55;
+  drawPolygon(context, [topFarLeft, topNearLeft, baseNearLeft, baseFarLeft], mixColor(palette.front, palette.side, cityAmount), true);
+  drawPolygon(context, [topNearLeft, topNearRight, baseNearRight, baseNearLeft], palette.front, true);
+  drawPolygon(context, [topNearLeft, topNearRight, topFarRight, topFarLeft], mixColor(palette.front, palette.roof, cityAmount), true);
+
+  if (progress > 0.34) {
+    drawWindows(context, run, topNearLeft, topNearRight, baseNearLeft, progress);
+  }
+}
+
+function drawWindows(
+  context: CanvasRenderingContext2D,
+  run: BarcodeRun,
+  topLeft: Point,
+  topRight: Point,
+  bottomLeft: Point,
+  progress: number,
+) {
+  const width = topRight.x - topLeft.x;
+  const height = bottomLeft.y - topLeft.y;
+  if (width < 2.4 || height < 24) return;
+  const palette = buildingPalettes[run.palette];
+  const columns = Math.max(1, Math.min(3, Math.floor(width / 4.4)));
+  const rows = Math.max(3, Math.min(11, Math.floor(height / 10)));
+  const cellWidth = Math.max(0.7, Math.min(1.8, width / Math.max(3, columns * 2.5)));
+
+  context.save();
+  context.globalAlpha = smoothstep(0.34, 0.9, progress) * 0.78;
+  context.fillStyle = palette.window;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < columns; col++) {
+      if (pseudoRandom(run.index + col, row, 31) < 0.28) continue;
+      const x = topLeft.x + width * ((col + 1) / (columns + 1)) - cellWidth / 2;
+      const y = topLeft.y + 9 + row * Math.max(5, (height - 16) / rows);
+      context.fillRect(x, y, cellWidth, 1.6);
+    }
+  }
+  context.restore();
+}
+
+function getRunGeometry(run: BarcodeRun, layout: BarcodeLayout, progress: number): RunGeometry {
+  const xCenter = lerp(run.flatCenter, run.cityCenter, progress);
+  const width = lerp(run.flatWidth, run.cityWidth, progress);
+  const avenueRearEdge = roadCenter + layout.streetWidth / 2;
+  const cityZ0 = run.kind === "quiet" ? 0.28 : avenueRearEdge;
+  const cityZ1 = run.kind === "street" ? 0.49 : run.kind === "building" ? 0.45 : 0.281;
+  const z0 = lerp(-flatDepth / 2, cityZ0, progress);
+  const z1 = lerp(flatDepth / 2, cityZ1, progress);
+  const height = lerp(0.006, run.cityHeight, progress);
+
+  return {
+    x0: xCenter - width / 2,
+    x1: xCenter + width / 2,
+    z0,
+    z1,
+    height,
+  };
+}
+
+function drawProps(context: CanvasRenderingContext2D, layout: BarcodeLayout, progress: number) {
+  const visibility = smoothstep(0.38, 0.9, progress);
+  if (visibility <= 0) return;
+  for (const prop of layout.props) {
+    if (prop.kind === "car") drawCar(context, prop, progress, visibility);
+    else drawTrafficSignal(context, prop, progress, visibility);
+  }
+}
+
+function drawCar(
+  context: CanvasRenderingContext2D,
+  prop: CityProp,
+  progress: number,
+  visibility: number,
+) {
+  const lane = Math.max(prop.streetWidth, 0.018);
+  const avenue = prop.direction === "avenue";
+  const bodySize = avenue
+    ? { x: lane * 1.46, y: 0.034, z: lane * 0.64 }
+    : { x: lane * 0.64, y: 0.034, z: lane * 1.46 };
+  const roofSize = avenue
+    ? { x: lane * 0.72, y: 0.024, z: lane * 0.46 }
+    : { x: lane * 0.46, y: 0.024, z: lane * 0.72 };
+  drawWorldCuboid(
+    context,
+    { x: prop.x, y: 0.029, z: prop.z },
+    scaleSize(bodySize, visibility),
+    progress,
+    carColors[prop.palette % carColors.length],
+  );
+  drawWorldCuboid(
+    context,
+    { x: prop.x, y: 0.058, z: prop.z },
+    scaleSize(roofSize, visibility),
+    progress,
+    mixColor(carColors[prop.palette % carColors.length], "#ffffff", 0.2),
+  );
+}
+
+function drawTrafficSignal(
+  context: CanvasRenderingContext2D,
+  prop: CityProp,
+  progress: number,
+  visibility: number,
+) {
+  const lane = Math.max(prop.streetWidth, 0.018);
+  const avenue = prop.direction === "avenue";
+  const poleBase = avenue
+    ? { x: prop.x, y: 0.012, z: prop.z + lane * 0.32 }
+    : { x: prop.x + lane * 0.32, y: 0.012, z: prop.z };
+  const poleTop = { ...poleBase, y: 0.143 * visibility };
+  const signalTop = { x: prop.x, y: 0.143 * visibility, z: prop.z };
+  const signal = { x: prop.x, y: 0.092 * visibility, z: prop.z };
+
+  context.save();
+  context.strokeStyle = "#292f38";
+  context.lineCap = "square";
+  context.lineWidth = Math.max(0.8, visibility * 1.35);
+  drawWorldLine(context, poleBase, poleTop, progress);
+  drawWorldLine(context, poleTop, signalTop, progress);
+  drawWorldLine(context, signalTop, signal, progress);
+  const projected = projectPoint(signal, progress);
+  context.fillStyle = "#ffc429";
+  context.fillRect(projected.x - 1.5 * visibility, projected.y - 2.2 * visibility, 3 * visibility, 4.4 * visibility);
+  context.restore();
+}
+
+function drawWorldCuboid(
+  context: CanvasRenderingContext2D,
+  center: Point3,
+  size: Point3,
+  progress: number,
+  color: string,
+) {
+  const x0 = center.x - size.x / 2;
+  const x1 = center.x + size.x / 2;
+  const y0 = center.y - size.y / 2;
+  const y1 = center.y + size.y / 2;
+  const z0 = center.z - size.z / 2;
+  const z1 = center.z + size.z / 2;
+  const top = [
+    projectPoint({ x: x0, y: y1, z: z0 }, progress),
+    projectPoint({ x: x1, y: y1, z: z0 }, progress),
+    projectPoint({ x: x1, y: y1, z: z1 }, progress),
+    projectPoint({ x: x0, y: y1, z: z1 }, progress),
+  ];
+  const nearBase = [
+    projectPoint({ x: x0, y: y0, z: z0 }, progress),
+    projectPoint({ x: x1, y: y0, z: z0 }, progress),
+  ];
+
+  drawPolygon(context, [top[0], top[1], nearBase[1], nearBase[0]], mixColor(color, "#111827", 0.22), true);
+  drawPolygon(context, top, mixColor(color, "#ffffff", 0.16), true);
+}
+
+function scaleSize(size: Point3, amount: number): Point3 {
+  return { x: size.x * amount, y: size.y * amount, z: size.z * amount };
+}
+
+function drawWorldLine(
+  context: CanvasRenderingContext2D,
+  from: Point3,
+  to: Point3,
+  progress: number,
+) {
+  const start = projectPoint(from, progress);
+  const end = projectPoint(to, progress);
+  context.beginPath();
+  context.moveTo(start.x, start.y);
+  context.lineTo(end.x, end.y);
+  context.stroke();
+}
+
+function drawWorldQuad(
+  context: CanvasRenderingContext2D,
+  points: Point3[],
+  progress: number,
+  fill: string,
+) {
+  drawPolygon(context, points.map((point) => projectPoint(point, progress)), fill);
+}
+
+function projectPoint(point: Point3, progress: number): Point {
+  const yaw = lerp(0, 0.245, progress);
+  const pitch = lerp(-Math.PI / 2, -0.575, progress);
+  const cosYaw = Math.cos(yaw);
+  const sinYaw = Math.sin(yaw);
+  const cosPitch = Math.cos(pitch);
+  const sinPitch = Math.sin(pitch);
+  const rotatedX = point.x * cosYaw - point.z * sinYaw;
+  const rotatedZ = point.x * sinYaw + point.z * cosYaw;
+  const rotatedY = point.y * cosPitch - rotatedZ * sinPitch;
+  const scaleX = lerp(196, 180, progress);
+  const scaleY = lerp(185, 225, progress);
+  const horizontalOffset = lerp(0, 0.068, progress);
+  const centerY = lerp(canvasHeight / 2, 236, progress);
+
+  return {
+    x: canvasWidth / 2 + (rotatedX + horizontalOffset) * scaleX,
+    y: centerY - rotatedY * scaleY,
+  };
 }
 
 function drawPolygon(
   context: CanvasRenderingContext2D,
   points: Point[],
-  stroke = true,
-) {
-  context.beginPath();
-  context.moveTo(points[0].x, points[0].y);
-  for (const point of points.slice(1)) {
-    context.lineTo(point.x, point.y);
-  }
-  context.closePath();
-  context.fill();
-  if (stroke) {
-    context.stroke();
-  }
-}
-
-function drawRoundedRect(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
+  fill: string,
   stroke = false,
 ) {
+  if (points.length === 0) return;
   context.beginPath();
-  context.moveTo(x + radius, y);
-  context.lineTo(x + width - radius, y);
-  context.quadraticCurveTo(x + width, y, x + width, y + radius);
-  context.lineTo(x + width, y + height - radius);
-  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  context.lineTo(x + radius, y + height);
-  context.quadraticCurveTo(x, y + height, x, y + height - radius);
-  context.lineTo(x, y + radius);
-  context.quadraticCurveTo(x, y, x + radius, y);
+  context.moveTo(points[0].x, points[0].y);
+  for (const point of points.slice(1)) context.lineTo(point.x, point.y);
   context.closePath();
-  if (stroke) {
-    context.stroke();
-  } else {
-    context.fill();
-  }
+  context.fillStyle = fill;
+  context.fill();
+  if (stroke) context.stroke();
 }
 
 function easeInOutCubic(value: number) {
@@ -716,8 +695,8 @@ function easeInOutCubic(value: number) {
 }
 
 function smoothstep(edge0: number, edge1: number, value: number) {
-  const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
+  const amount = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
+  return amount * amount * (3 - 2 * amount);
 }
 
 function lerp(start: number, end: number, amount: number) {
@@ -732,11 +711,6 @@ function mixColor(start: string, end: string, amount: number) {
   )}, ${Math.round(lerp(from.b, to.b, amount))})`;
 }
 
-function colorWithAlpha(value: string, alpha: number) {
-  const color = hexToRgb(value);
-  return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
-}
-
 function hexToRgb(value: string) {
   const hex = value.replace("#", "");
   return {
@@ -746,7 +720,7 @@ function hexToRgb(value: string) {
   };
 }
 
-function pseudoRandom(col: number, row: number, seed: number) {
-  const value = Math.sin((col + 1) * 91.73 + (row + 1) * 57.31 + seed * 19.19) * 10000;
+function pseudoRandom(column: number, row: number, seed: number) {
+  const value = Math.sin((column + 1) * 91.73 + (row + 1) * 57.31 + seed * 19.19) * 10000;
   return value - Math.floor(value);
 }

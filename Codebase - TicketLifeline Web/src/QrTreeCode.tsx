@@ -1,4 +1,3 @@
-import { ScanQrCode, TreePine } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type QrTreeCodeProps = {
@@ -54,28 +53,6 @@ export function QrTreeCode({ matrix, size }: QrTreeCodeProps) {
 
   return (
     <div className="qr-tree-code">
-      <div className="qr-mode-toggle" role="group" aria-label="QR view">
-        <button
-          type="button"
-          className={mode === "qr" ? "active" : ""}
-          onClick={() => setMode("qr")}
-          title="Overhead QR view"
-          aria-pressed={mode === "qr"}
-        >
-          <ScanQrCode size={15} />
-          <span>QR</span>
-        </button>
-        <button
-          type="button"
-          className={mode === "tree" ? "active" : ""}
-          onClick={() => setMode("tree")}
-          title="3D tree view"
-          aria-pressed={mode === "tree"}
-        >
-          <TreePine size={15} />
-          <span>Tree</span>
-        </button>
-      </div>
       <button
         type="button"
         className={`qr-artboard ${mode}`}
