@@ -15,4 +15,4 @@ npm run convex:dev
 ```
 
 The web and iOS apps use the same Convex user accounts and pass records. Each client has its
-own run instructions in its folder.
+own run instructions in its folder. 

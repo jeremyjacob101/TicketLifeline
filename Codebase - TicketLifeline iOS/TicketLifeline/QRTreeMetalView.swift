@@ -223,18 +223,12 @@ private final class QRTreeMetalRenderer: NSObject, MTKViewDelegate {
             for column in 0..<side {
                 let dark = matrix.dark(row, column)
                 let distance = hypot(Float(column) - center, Float(row) - center)
-                let type: UInt32 = !dark ? 0 : distance < trunkRadius ? 2 : distance >= canopyRadius ? 3 : 4
+                // The ground always remains a faithful QR surface.  The
+                // physical trunk is added separately below as tree-only
+                // geometry, so it never stains the flat scan view brown.
+                let type: UInt32 = !dark ? 0 : distance >= canopyRadius ? 3 : 4
                 add(column, row, base: 0, height: blockSize, type: type)
             }
-        }
-        // Two short, camera-facing root columns sit below the crown. They
-        // make the trunk read as a real tree without placing any brown block
-        // above the leaves or relying on a depth bias.
-        let core = Int(center.rounded(.down))
-        let frontRow = max(0, core - 1)
-        for column in core...min(side - 1, core + 1) {
-            let height = (26 + pseudoRandom(column, frontRow, 89) * 4) * heightScale
-            add(column, frontRow, base: blockSize, height: height, type: 6)
         }
         for row in 0..<side {
             for column in 0..<side {
@@ -243,31 +237,20 @@ private final class QRTreeMetalRenderer: NSObject, MTKViewDelegate {
                 let ornamentalRadius = Float(side) * 0.43
                 let ornamentalFullness = max(0, 1 - distance / ornamentalRadius)
                 let ornamental = !dark && distance < ornamentalRadius && pseudoRandom(column, row, 61) > 0.88 - ornamentalFullness * 0.22
-                if !dark && !ornamental { continue }
-
-                if dark && distance < trunkRadius {
-                    // A mature trunk reaches into the lower crown; depth
-                    // testing still keeps the foliage in front of it.
-                    let height = (60 + pseudoRandom(column, row, 10) * 8) * heightScale
-                    add(column, row, base: blockSize, height: height, type: 2)
-                    // A blossom cap is actual occluding geometry—not alpha—so
-                    // the trunk supports the crown without poking through it.
-                    let capBase = (61 + pseudoRandom(column, row, 27) * 5) * heightScale
-                    let capHeight = (18 + pseudoRandom(column, row, 31) * 8) * heightScale
-                    add(column, row, base: capBase, height: capHeight, type: 1)
+                // A tree needs a trunk even when a particular QR happens to
+                // have pale modules in its centre.  This central core is art
+                // geometry, not a QR-dependent accident.
+                if distance < trunkRadius {
+                    let height = (68 + pseudoRandom(column, row, 5) * 10) * heightScale
+                    add(column, row, base: blockSize, height: height, type: 6)
                     continue
                 }
+                if !dark && !ornamental { continue }
                 if distance < canopyRadius {
                     let fullness = 1 - distance / canopyRadius
-                    // A narrow opening on the camera-facing side lets the
-                    // trunk emerge below the crown. This is real geometry,
-                    // not a depth/opacity override, so leaves still conceal
-                    // the upper trunk naturally.
-                    let frontTrunkWindow = distance < trunkRadius * 1.35 && Float(row + column) < center * 2 - 0.5
-                    if frontTrunkWindow { continue }
                     if !ornamental && fullness < 0.24 && pseudoRandom(column, row, 29) < 0.34 { continue }
-                    let base = (34 + fullness * 25 + pseudoRandom(column, row, 7) * 10) * heightScale
-                    let height = (7 + fullness * 31 + pseudoRandom(column, row, ornamental ? 43 : 11) * 11) * heightScale
+                    let base = (42 + fullness * 34 + pseudoRandom(column, row, 7) * 10) * heightScale
+                    let height = (12 + fullness * 42 + pseudoRandom(column, row, ornamental ? 43 : 11) * 12) * heightScale
                     add(column, row, base: base, height: height, type: ornamental ? 5 : 1)
                 } else if dark && pseudoRandom(column, row, 13) > 0.36 {
                     let height = (4 + pseudoRandom(column, row, 17) * 5) * heightScale

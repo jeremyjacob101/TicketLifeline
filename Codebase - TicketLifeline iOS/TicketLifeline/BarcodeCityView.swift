@@ -20,8 +20,8 @@ struct BarcodeCityView: View {
             BarcodeImage(payload: code.payload)
                 .padding(.horizontal, 32)
                 .padding(.vertical, 48)
-                .opacity(1 - Double(smoothstep(0.08, 0.38, progress)))
-                .scaleEffect(1 - progress * 0.035)
+                .opacity(1 - Double(smoothstep(0.18, 0.62, progress)))
+                .scaleEffect(1 - progress * 0.06)
                 .accessibilityHidden(progress > 0.5)
         }
         .onAppear { setMode(animated: false) }
@@ -32,7 +32,7 @@ struct BarcodeCityView: View {
     private func setMode(animated: Bool) {
         let target: CGFloat = isFlat ? 0 : 1
         if animated {
-            withAnimation(.easeInOut(duration: 0.58)) { progress = target }
+            withAnimation(.spring(response: 0.72, dampingFraction: 0.84)) { progress = target }
         } else {
             progress = target
         }
@@ -56,14 +56,15 @@ private struct BarcodeCityStage: View {
             ])
             context.fill(Path(CGRect(origin: .zero, size: size)), with: .linearGradient(sky, startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
 
-            let cityAlpha = smoothstep(0.02, 0.22, progress)
+            let cityAlpha = smoothstep(0.05, 0.28, progress)
             guard cityAlpha > 0 else { return }
-            drawCity(context: &context, size: size, alpha: cityAlpha)
+            drawCity(context: &context, size: size, alpha: cityAlpha, progress: progress)
         }
         .accessibilityHidden(true)
     }
 
-    private func drawCity(context: inout GraphicsContext, size: CGSize, alpha: CGFloat) {
+    private func drawCity(context: inout GraphicsContext, size: CGSize, alpha: CGFloat, progress: CGFloat) {
+        let rise = smoothstep(0.04, 0.96, progress)
         let horizon = size.height * 0.61
         let roadTopLeft = CGPoint(x: size.width * 0.08, y: horizon + 28)
         let roadTopRight = CGPoint(x: size.width * 0.92, y: horizon + 28)
@@ -83,12 +84,15 @@ private struct BarcodeCityStage: View {
         let module = size.width * 0.78 / total
         var cursor = size.width * 0.11
         for run in runs {
-            let width = max(3.4, CGFloat(run.width) * module * 1.12)
+            let flatWidth = max(1.4, CGFloat(run.width) * module)
+            let targetWidth = max(3.4, CGFloat(run.width) * module * 1.12)
+            let width = lerp(flatWidth, targetWidth, rise)
             let seed = random(run.index, run.width, 3)
-            let depth = 7 + min(19, width * 1.35)
-            let height = 54 + CGFloat(run.width) * 7 + seed * 62
+            let depth = (7 + min(19, targetWidth * 1.35)) * rise
+            let targetHeight = 54 + CGFloat(run.width) * 7 + seed * 62
             let normalized = (cursor + width * 0.5) / size.width
-            let base = horizon + 12 + normalized * 12
+            let base = lerp(size.height * 0.65, horizon + 12 + normalized * 12, rise)
+            let height = lerp(size.height * 0.23, targetHeight, rise)
             let top = max(28, base - height)
             let palette = palette(for: run.index)
 
@@ -114,14 +118,14 @@ private struct BarcodeCityStage: View {
             context.fill(roof, with: .color(palette.roof.opacity(Double(alpha))))
             context.fill(Path(front), with: .color(palette.front.opacity(Double(alpha))))
 
-            if width > 5.8 {
+            if width > 5.8 && rise > 0.52 {
                 let rows = max(2, Int((front.height - 12) / 15))
                 for row in 0..<rows where random(run.index + row, row, 41) > 0.18 {
                     let y = front.minY + 9 + CGFloat(row) * 14
                     context.fill(Path(CGRect(x: front.minX + max(1.2, width * 0.2), y: y, width: max(1.2, width * 0.36), height: 2.2)), with: .color(palette.window.opacity(Double(alpha * 0.9))))
                 }
             }
-            if height > 108 && random(run.index, run.width, 71) > 0.62 {
+            if height > 108 && rise > 0.72 && random(run.index, run.width, 71) > 0.62 {
                 context.stroke(Path { path in
                     path.move(to: CGPoint(x: front.midX + depth * 0.5, y: front.minY - depth * 0.25))
                     path.addLine(to: CGPoint(x: front.midX + depth * 0.62, y: front.minY - 12))
@@ -159,6 +163,10 @@ private struct BarcodeCityStage: View {
     private func smoothstep(_ lower: CGFloat, _ upper: CGFloat, _ value: CGFloat) -> CGFloat {
         let t = min(1, max(0, (value - lower) / (upper - lower)))
         return t * t * (3 - 2 * t)
+    }
+
+    private func lerp(_ from: CGFloat, _ to: CGFloat, _ amount: CGFloat) -> CGFloat {
+        from + (to - from) * amount
     }
 
     private func mix(_ from: Color, _ to: Color, _ amount: CGFloat) -> Color {
