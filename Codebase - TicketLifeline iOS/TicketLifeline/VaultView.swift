@@ -28,16 +28,28 @@ struct VaultView: View {
                             .buttonStyle(.borderedProminent)
                     }
                 } else {
-                    List(appState.savedCodes) { code in
-                        NavigationLink(value: code) {
-                            CodeRow(code: code)
+                    List {
+                        Section {
+                            ForEach(appState.savedCodes) { code in
+                                NavigationLink(value: code) {
+                                    CodeRow(code: code)
+                                }
+                            }
+                            .onDelete { indexSet in
+                                for index in indexSet {
+                                    Task { try? await appState.deleteCode(appState.savedCodes[index].id) }
+                                }
+                            }
+                        } header: {
+                            Text("Go to ticketlifeline.link to access your codes anywhere!")
+                                .padding(.bottom, 4)
                         }
                     }
                 }
             }
             .navigationTitle("My QR Codes")
             .navigationDestination(for: SavedCode.self) { code in
-                CodeDetailView(code: code)
+                CodeDetailView(code: code, appState: appState)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -276,7 +288,11 @@ private struct CodeRow: View {
 
 struct CodeDetailView: View {
     let code: SavedCode
+    @ObservedObject var appState: AppState
     @State private var displayMode: DisplayMode = .code
+    @State private var isConfirmingDelete = false
+    @State private var isEditing = false
+    @State private var isDeleting = false
 
     var body: some View {
         ScrollView {
@@ -318,9 +334,131 @@ struct CodeDetailView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle(code.isBarcode ? "Barcode" : "QR Code")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button { isEditing = true } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    Divider()
+                    Button(role: .destructive) { isConfirmingDelete = true } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+            }
+        }
+        .alert("Delete this code?", isPresented: $isConfirmingDelete) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) { Task { await deleteCode() } }
+        } message: {
+            Text("This permanently removes \"\(code.label)\" and cannot be undone.")
+        }
+        .sheet(isPresented: $isEditing) {
+            EditCodeView(code: code, appState: appState)
+        }
+    }
+
+    private func deleteCode() async {
+        isDeleting = true
+        do {
+            try await appState.deleteCode(code.id)
+        } catch {
+            isDeleting = false
+        }
     }
 
     private enum DisplayMode: Hashable { case code, art }
+}
+
+private struct EditCodeView: View {
+    let code: SavedCode
+    @ObservedObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var title: String
+    @State private var issuer: String
+    @State private var notes: String
+    @State private var eventDate: String
+    @State private var launchURL: String
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    init(code: SavedCode, appState: AppState) {
+        self.code = code
+        self.appState = appState
+        _title = State(initialValue: code.label)
+        _issuer = State(initialValue: code.issuer ?? "")
+        _notes = State(initialValue: code.notes ?? "")
+        _eventDate = State(initialValue: code.eventDate ?? "")
+        _launchURL = State(initialValue: code.launchURL ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Title", text: $title)
+                    TextField("Issuer", text: $issuer)
+                }
+                Section {
+                    TextField("Notes", text: $notes)
+                    TextField("Event date", text: $eventDate)
+                }
+                Section {
+                    TextField("Scan URL", text: $launchURL)
+                        .keyboardType(.URL)
+                        .textContentType(.URL)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                }
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage).foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("Edit Code")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isSaving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { Task { await save() } }
+                        .disabled(isSaving || title.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            .disabled(isSaving)
+        }
+    }
+
+    private func save() async {
+        isSaving = true
+        errorMessage = nil
+        do {
+            let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            try await appState.updateCode(
+                code.id,
+                title: cleanTitle.isEmpty ? code.label : cleanTitle,
+                issuer: issuer.trimmingCharacters(in: .whitespaces).isEmpty ? nil : issuer.trimmingCharacters(in: .whitespaces),
+                codeType: code.codeType,
+                format: code.format,
+                encodedValue: code.payload,
+                launchUrl: launchURL.trimmingCharacters(in: .whitespaces).isEmpty ? nil : launchURL.trimmingCharacters(in: .whitespaces),
+                visualMatrix: code.visualMatrix,
+                visualSize: code.visualSize,
+                eventDate: eventDate.trimmingCharacters(in: .whitespaces).isEmpty ? nil : eventDate.trimmingCharacters(in: .whitespaces),
+                notes: notes.trimmingCharacters(in: .whitespaces).isEmpty ? nil : notes.trimmingCharacters(in: .whitespaces),
+                color: code.color
+            )
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            isSaving = false
+        }
+    }
 }
 
 private struct CodeImage: View {

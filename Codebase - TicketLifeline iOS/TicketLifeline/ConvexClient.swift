@@ -68,6 +68,29 @@ struct ConvexClient: Sendable {
         try await request(endpoint: "api/mutation", body: FunctionCall(path: path, args: args), token: token)
     }
 
+    func deletePass(_ id: String, token: String) async throws {
+        let _: Bool = try await mutation(
+            "passes:remove",
+            args: DeletePassArgs(id: id),
+            token: token,
+            returning: Bool.self
+        )
+    }
+
+    func updatePass(_ id: String, title: String, issuer: String?, codeType: String, format: String?, encodedValue: String, launchUrl: String?, visualMatrix: String?, visualSize: Int?, eventDate: String?, notes: String?, color: String?, token: String) async throws {
+        let _: Bool = try await mutation(
+            "passes:update",
+            args: UpdatePassArgs(
+                id: id, title: title, issuer: issuer, codeType: codeType,
+                format: format, encodedValue: encodedValue, launchUrl: launchUrl,
+                visualMatrix: visualMatrix, visualSize: visualSize,
+                eventDate: eventDate, notes: notes, color: color
+            ),
+            token: token,
+            returning: Bool.self
+        )
+    }
+
     func createPass(code: DetectedCode, title: String, token: String) async throws -> String {
         try await mutation(
             "passes:create",
@@ -114,6 +137,25 @@ struct ConvexClient: Sendable {
             "refresh token used outside", "missing refresh token",
         ].contains(where: value.contains)
     }
+}
+
+private struct DeletePassArgs: Encodable {
+    let id: String
+}
+
+private struct UpdatePassArgs: Encodable {
+    let id: String
+    let title: String
+    let issuer: String?
+    let codeType: String
+    let format: String?
+    let encodedValue: String
+    let launchUrl: String?
+    let visualMatrix: String?
+    let visualSize: Int?
+    let eventDate: String?
+    let notes: String?
+    let color: String?
 }
 
 private struct FunctionCall<Args: Encodable>: Encodable {

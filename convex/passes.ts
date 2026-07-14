@@ -154,6 +154,7 @@ export const update = mutation({
       color: args.color,
       updatedAt: Date.now(),
     });
+    return true;
   },
 });
 
@@ -166,6 +167,7 @@ export const remove = mutation({
       throw new Error("Pass not found");
     }
     await ctx.db.delete(args.id);
+    return true;
   },
 });
 

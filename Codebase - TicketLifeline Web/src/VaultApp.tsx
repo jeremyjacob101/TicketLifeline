@@ -61,6 +61,7 @@ export function VaultApp() {
   const { signOut } = useAuthActions();
   const passes = useQuery(api.passes.list);
   const createPass = useMutation(api.passes.create);
+  const updatePass = useMutation(api.passes.update);
   const removePass = useMutation(api.passes.remove);
   const markOpened = useMutation(api.passes.markOpened);
   const deleteAccount = useMutation(api.users.deleteAccount);
@@ -404,19 +405,28 @@ export function VaultApp() {
             <p className="muted-row">Loading passes...</p>
           ) : filteredPasses.length ? (
             filteredPasses.map((pass) => (
-              <button
-                key={pass._id}
-                type="button"
-                className={`pass-row ${selectedPass?._id === pass._id ? "selected" : ""}`}
-                onClick={() => setSelectedId(pass._id)}
-              >
-                <span className="pass-swatch" style={{ background: pass.color ?? "#0f766e" }} />
-                <span>
-                  <strong>{pass.title}</strong>
-                  <small>{pass.issuer || pass.format || "Saved code"}</small>
-                </span>
-                <ArrowUpRight size={16} />
-              </button>
+              <div key={pass._id} className="pass-row-wrapper">
+                <button
+                  type="button"
+                  className={`pass-row ${selectedPass?._id === pass._id ? "selected" : ""}`}
+                  onClick={() => setSelectedId(pass._id)}
+                >
+                  <span className="pass-swatch" style={{ background: pass.color ?? "#0f766e" }} />
+                  <span>
+                    <strong>{pass.title}</strong>
+                    <small>{pass.issuer || pass.format || "Saved code"}</small>
+                  </span>
+                  <ArrowUpRight size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="pass-row-delete"
+                  onClick={() => void removePass({ id: pass._id })}
+                  aria-label={`Delete ${pass.title}`}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             ))
           ) : (
             <p className="muted-row">No passes yet. Add the first one above.</p>
@@ -429,6 +439,22 @@ export function VaultApp() {
           <PassDetail
             pass={selectedPass}
             onDelete={() => void removePass({ id: selectedPass._id })}
+            onUpdate={(fields) => {
+              void updatePass({
+                id: selectedPass._id,
+                title: fields.title || "Untitled pass",
+                issuer: fields.issuer || undefined,
+                codeType: selectedPass.codeType,
+                format: selectedPass.format || undefined,
+                encodedValue: selectedPass.encodedValue,
+                launchUrl: fields.launchUrl || undefined,
+                visualMatrix: selectedPass.visualMatrix || undefined,
+                visualSize: selectedPass.visualSize,
+                eventDate: fields.eventDate || undefined,
+                notes: fields.notes || undefined,
+                color: selectedPass.color ?? "#0f766e",
+              });
+            }}
           />
         ) : (
           <div className="empty-detail">

@@ -8,7 +8,7 @@ struct RootView: View {
         Group {
             #if DEBUG
             if ProcessInfo.processInfo.environment["TICKETLIFELINE_ART_PREVIEW"] == "1" {
-                NavigationStack { CodeDetailView(code: .debugQRCode) }
+                NavigationStack { CodeDetailView(code: .debugQRCode, appState: appState) }
             } else if !appState.isSignedIn {
                 AuthView(appState: appState)
             } else {

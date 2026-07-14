@@ -129,6 +129,26 @@ final class AppState: ObservableObject {
         }
     }
 
+    func deleteCode(_ id: String) async throws {
+        try await withTrustedSession { session in
+            try await self.client.deletePass(id, token: session.token)
+        }
+        try await refreshCodes()
+    }
+
+    func updateCode(_ id: String, title: String, issuer: String?, codeType: String, format: String?, encodedValue: String, launchUrl: String?, visualMatrix: String?, visualSize: Int?, eventDate: String?, notes: String?, color: String?) async throws {
+        try await withTrustedSession { session in
+            try await self.client.updatePass(
+                id, title: title, issuer: issuer, codeType: codeType,
+                format: format, encodedValue: encodedValue, launchUrl: launchUrl,
+                visualMatrix: visualMatrix, visualSize: visualSize,
+                eventDate: eventDate, notes: notes, color: color,
+                token: session.token
+            )
+        }
+        try await refreshCodes()
+    }
+
     func saveCode(_ code: DetectedCode, label: String) async throws {
         let _: String = try await withTrustedSession { session in
             try await self.client.createPass(code: code, title: label, token: session.token)

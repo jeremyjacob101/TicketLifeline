@@ -621,8 +621,19 @@ select:focus {
   font-weight: 850;
 }
 
+.pass-row-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pass-row-wrapper:hover .pass-row-delete {
+  opacity: 1;
+}
+
 .pass-row {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   display: grid;
   grid-template-columns: auto 1fr auto;
   gap: 12px;
@@ -638,6 +649,26 @@ select:focus {
 .pass-row.selected {
   border-color: var(--border);
   background: #f8fafb;
+}
+
+.pass-row-delete {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #9ca3af;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.pass-row-delete:hover {
+  border-color: #fecaca;
+  background: #fff1f0;
+  color: var(--danger);
 }
 
 .pass-row strong,
@@ -818,6 +849,51 @@ select:focus {
 
 .detail-actions {
   justify-content: space-between;
+  align-items: center;
+}
+
+.detail-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.secondary-button {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: #344054;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.secondary-button:hover {
+  background: #f8fafb;
+}
+
+.edit-fields {
+  display: grid;
+  gap: 14px;
+}
+
+.edit-fields label {
+  display: grid;
+  gap: 7px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .empty-detail {
