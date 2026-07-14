@@ -1,15 +1,20 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 
 const maxPayloadLength = 20_000;
 const maxLaunchUrlLength = 2_000;
 const maxVisualMatrixLength = 40_000;
 
-async function requireUserId(ctx: Parameters<typeof getAuthUserId>[0]) {
+async function requireUserId(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
   if (!userId) {
     throw new Error("Not authenticated");
+  }
+  const user = await ctx.db.get(userId);
+  if (!user) {
+    throw new Error("Account no longer exists");
   }
   return userId;
 }
