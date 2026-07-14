@@ -145,6 +145,11 @@ button {
   color: var(--accent);
 }
 
+.brand-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
 .assurance-row {
   display: inline-flex;
   align-items: center;

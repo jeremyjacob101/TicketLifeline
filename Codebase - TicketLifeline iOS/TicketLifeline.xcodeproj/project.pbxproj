@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		31C49529093806E989FDAB85 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4CE2365F00E44F4216BA107D /* Assets.xcassets */; };
 		489EDE64C0295FF886C0EB16 /* QRTreeShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0DB75EC346F7A940600D47B1 /* QRTreeShaders.metal */; };
 		4F951470E538A77A6AE112FE /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6DB76867DC0A62820E6E9CA /* Models.swift */; };
 		571270E6ED24C8C2215D56AF /* QRCodeImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC1A00B33B9DD27A214F5BB /* QRCodeImage.swift */; };
@@ -25,6 +26,7 @@
 		00FF1A9FE3E065688A627213 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0DB75EC346F7A940600D47B1 /* QRTreeShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = QRTreeShaders.metal; sourceTree = "<group>"; };
 		3226219E80B77ECC999152E4 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		4CE2365F00E44F4216BA107D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		54D0E72632CF69EB20139A71 /* TicketLifeline.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TicketLifeline.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		57ADBF98E2F51E5F823E440D /* CodeArtView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeArtView.swift; sourceTree = "<group>"; };
 		5FBF97F2ADBE38DE907D4418 /* TicketLifelineApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TicketLifelineApp.swift; sourceTree = "<group>"; };
@@ -58,6 +60,7 @@
 		7EB7F58C89797C61493BE089 /* TicketLifeline */ = {
 			isa = PBXGroup;
 			children = (
+				4CE2365F00E44F4216BA107D /* Assets.xcassets */,
 				C17C1F000000000000000000 /* BarcodeCityShaders.metal */,
 				A55DCE70C018B93F0495EAB0 /* BarcodeCityView.swift */,
 				57ADBF98E2F51E5F823E440D /* CodeArtView.swift */,
@@ -83,6 +86,7 @@
 			buildConfigurationList = 165BE67675EEFF02E2D6A26D /* Build configuration list for PBXNativeTarget "TicketLifeline" */;
 			buildPhases = (
 				63FF5BDDFC96807FEF9888E6 /* Sources */,
+				219F1FBE0353C0F239C1DE4E /* Resources */,
 			);
 			buildRules = (
 			);
@@ -122,6 +126,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		219F1FBE0353C0F239C1DE4E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				31C49529093806E989FDAB85 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		63FF5BDDFC96807FEF9888E6 /* Sources */ = {
@@ -276,7 +291,7 @@
 		EDF9D81A0F03AAE9F5DCC7E7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TicketLifeline/Info.plist;
@@ -292,7 +307,7 @@
 		F7A6A19D3D4E1637DD3396CE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TicketLifeline/Info.plist;
