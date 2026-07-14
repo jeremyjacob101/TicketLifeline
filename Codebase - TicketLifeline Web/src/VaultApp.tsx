@@ -11,6 +11,7 @@ import {
   QrCode,
   Search,
   Trash2,
+  X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { DragEvent } from "react";
@@ -81,6 +82,8 @@ export function VaultApp() {
   const [decodeState, setDecodeState] = useState<"idle" | "decoding" | "success" | "error">("idle");
   const [decodeMessage, setDecodeMessage] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -104,9 +107,12 @@ export function VaultApp() {
   useEffect(() => {
     if (selectedPass) {
       void markOpened({ id: selectedPass._id });
-      setSelectedId(selectedPass._id);
+      if (!selectedId) {
+        setSelectedId(selectedPass._id);
+        setIsDetailOpen(true);
+      }
     }
-  }, [markOpened, selectedPass?._id]);
+  }, [markOpened, selectedId, selectedPass?._id]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -137,6 +143,8 @@ export function VaultApp() {
     });
     setDraft({ ...emptyDraft, color: draft.color });
     setSelectedId(id);
+    setIsAddOpen(false);
+    setIsDetailOpen(true);
     setDecodeState("success");
     setDecodeMessage(
       launchUrl
@@ -178,6 +186,7 @@ export function VaultApp() {
             ? `Decoded locally and matched the photographed QR pattern.${scanMessage}`
             : `Decoded locally. Saved a clean generated code from the payload.${scanMessage}`,
       );
+      setIsAddOpen(true);
     } catch (err) {
       setDecodeState("error");
       setDecodeMessage(
@@ -272,143 +281,12 @@ export function VaultApp() {
           </div>
         </header>
 
-        <section className="add-panel" id="add-pass">
-          <div className="panel-heading">
-            <ImageUp size={18} />
-            <div>
-              <h2>Add pass</h2>
-              <p>Drop an iPhone photo here, choose a file, or paste the payload.</p>
-            </div>
-          </div>
-          <form className="pass-form" onSubmit={handleCreate}>
-            <label
-              className={`upload-target ${isDragActive ? "drag-active" : ""}`}
-              onDragEnter={(event) => {
-                event.preventDefault();
-                setIsDragActive(true);
-              }}
-              onDragOver={(event) => {
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "copy";
-                setIsDragActive(true);
-              }}
-              onDragLeave={(event) => {
-                event.preventDefault();
-                const nextTarget = event.relatedTarget;
-                if (
-                  !(nextTarget instanceof Node) ||
-                  !event.currentTarget.contains(nextTarget)
-                ) {
-                  setIsDragActive(false);
-                }
-              }}
-              onDrop={(event) => void handleDrop(event)}
-            >
-              <input
-                type="file"
-                accept="image/*,.heic,.heif,image/heic,image/heif"
-                onChange={(event) => {
-                  void handleFile(event.target.files?.[0] ?? null);
-                  event.currentTarget.value = "";
-                }}
-              />
-              <ImageUp size={20} />
-              <span>{isDragActive ? "Drop image" : "Drop or choose image"}</span>
-              <small>Supports PNG, JPG, HEIC, and HEIF. Stores a tiny digital QR matrix.</small>
-            </label>
-            <div className="field-grid">
-              <label>
-                Ticket title
-                <input
-                  value={draft.title}
-                  onChange={(event) => setDraft({ ...draft, title: event.target.value })}
-                  placeholder="Train home"
-                />
-              </label>
-              <label>
-                Issuer
-                <input
-                  value={draft.issuer}
-                  onChange={(event) => setDraft({ ...draft, issuer: event.target.value })}
-                  placeholder="Airline, venue, transit"
-                />
-              </label>
-              <label>
-                Date
-                <input
-                  type="date"
-                  value={draft.eventDate}
-                  onChange={(event) => setDraft({ ...draft, eventDate: event.target.value })}
-                />
-              </label>
-              <label>
-                Type
-                <select
-                  value={draft.codeType}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      codeType: event.target.value as CodeType,
-                      format: event.target.value === "qr" ? "QR_CODE" : "CODE_128",
-                    })
-                  }
-                >
-                  <option value="qr">QR code</option>
-                  <option value="barcode">Barcode</option>
-                </select>
-              </label>
-            </div>
-            <label>
-              Encoded value
-              <textarea
-                value={draft.encodedValue}
-                onChange={(event) => {
-                  const encodedValue = event.target.value;
-                  setDraft((current) => ({
-                    ...current,
-                    encodedValue,
-                    launchUrl:
-                      current.launchUrl || inferLaunchUrlFromPayload(encodedValue),
-                  }));
-                }}
-                placeholder="Paste the QR/barcode payload here"
-                rows={3}
-              />
-            </label>
-            {draft.codeType === "qr" ? (
-              <label>
-                Opens when scanned
-                <input
-                  value={draft.launchUrl}
-                  onChange={(event) => setDraft({ ...draft, launchUrl: event.target.value })}
-                  placeholder="https://example.com/ticket"
-                />
-              </label>
-            ) : null}
-            <label>
-              Notes
-              <input
-                value={draft.notes}
-                onChange={(event) => setDraft({ ...draft, notes: event.target.value })}
-                placeholder="Gate, seat, confirmation number"
-              />
-            </label>
-            <div className="form-footer">
-              <div className={`decode-status ${decodeState}`}>
-                {decodeState === "success" ? <Check size={15} /> : <AlertCircle size={15} />}
-                <span>{decodeMessage || "Photos are decoded locally; only a compact QR pattern is saved."}</span>
-              </div>
-              <button type="submit" className="primary-button">
-                <Plus size={16} />
-                Save pass
-              </button>
-            </div>
-          </form>
-        </section>
-
         <section className="pass-list" aria-label="Recent passes">
           <div className="section-title">
-            <h2>Recent passes</h2>
+            <div>
+              <h2>Recent passes</h2>
+              <p>Most recent first</p>
+            </div>
             <span>{filteredPasses.length}</span>
           </div>
           {passes === undefined ? (
@@ -419,7 +297,10 @@ export function VaultApp() {
                 <button
                   type="button"
                   className={`pass-row ${selectedPass?._id === pass._id ? "selected" : ""}`}
-                  onClick={() => setSelectedId(pass._id)}
+                  onClick={() => {
+                    setSelectedId(pass._id);
+                    setIsDetailOpen(true);
+                  }}
                 >
                   <span className="pass-swatch" style={{ background: pass.color ?? "#0f766e" }} />
                   <span>
@@ -439,41 +320,107 @@ export function VaultApp() {
               </div>
             ))
           ) : (
-            <p className="muted-row">No passes yet. Add the first one above.</p>
+            <p className="muted-row">No passes yet. Add the first one on the right.</p>
           )}
         </section>
       </section>
 
-      <aside className="detail-pane">
-        {selectedPass ? (
-          <PassDetail
-            pass={selectedPass}
-            onDelete={() => void removePass({ id: selectedPass._id })}
-            onUpdate={(fields) => {
-              void updatePass({
-                id: selectedPass._id,
-                title: fields.title || "Untitled pass",
-                issuer: fields.issuer || undefined,
-                codeType: selectedPass.codeType,
-                format: selectedPass.format || undefined,
-                encodedValue: selectedPass.encodedValue,
-                launchUrl: fields.launchUrl || undefined,
-                visualMatrix: selectedPass.visualMatrix || undefined,
-                visualSize: selectedPass.visualSize,
-                eventDate: fields.eventDate || undefined,
-                notes: fields.notes || undefined,
-                color: selectedPass.color ?? "#0f766e",
-              });
+      <aside className="add-rail" id="add-pass">
+        <div className="add-rail-heading">
+          <div className="add-rail-icon"><Plus size={18} /></div>
+          <div>
+            <h2>Add new</h2>
+            <p>Drop a ticket image to save it.</p>
+          </div>
+        </div>
+        <label
+          className={`upload-target add-drop-target ${isDragActive ? "drag-active" : ""}`}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setIsDragActive(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+            setIsDragActive(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            const nextTarget = event.relatedTarget;
+            if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+              setIsDragActive(false);
+            }
+          }}
+          onDrop={(event) => void handleDrop(event)}
+        >
+          <input
+            type="file"
+            accept="image/*,.heic,.heif,image/heic,image/heif"
+            onChange={(event) => {
+              void handleFile(event.target.files?.[0] ?? null);
+              event.currentTarget.value = "";
             }}
           />
-        ) : (
-          <div className="empty-detail">
-            <QrCode size={40} />
-            <h2>No pass selected</h2>
-            <p>Add a pass and the regenerated code will appear here.</p>
-          </div>
-        )}
+          <ImageUp size={24} />
+          <span>{isDragActive ? "Drop image here" : "Drop or choose"}</span>
+          <small>PNG, JPG, HEIC, or HEIF</small>
+        </label>
+        <div className={`decode-status add-status ${decodeState}`} aria-live="polite">
+          {decodeState === "success" ? <Check size={15} /> : decodeState === "error" ? <AlertCircle size={15} /> : null}
+          <span>{decodeMessage || "Your ticket details will appear after the code is read."}</span>
+        </div>
       </aside>
+
+      {isAddOpen ? (
+        <AddPassDialog
+          draft={draft}
+          decodeState={decodeState}
+          decodeMessage={decodeMessage}
+          onDraftChange={setDraft}
+          onSubmit={handleCreate}
+          onCancel={() => setIsAddOpen(false)}
+        />
+      ) : null}
+
+      {isDetailOpen && selectedPass ? (
+        <div className="dialog-backdrop" role="presentation" onMouseDown={() => setIsDetailOpen(false)}>
+          <section
+            className="pass-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pass-dialog-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button type="button" className="modal-close" onClick={() => setIsDetailOpen(false)} aria-label="Close pass details">
+              <X size={18} />
+            </button>
+            <div id="pass-dialog-title" className="sr-only">Pass details</div>
+            <PassDetail
+              pass={selectedPass}
+              onDelete={() => {
+                setIsDetailOpen(false);
+                void removePass({ id: selectedPass._id });
+              }}
+              onUpdate={(fields) => {
+                void updatePass({
+                  id: selectedPass._id,
+                  title: fields.title || "Untitled pass",
+                  issuer: fields.issuer || undefined,
+                  codeType: selectedPass.codeType,
+                  format: selectedPass.format || undefined,
+                  encodedValue: selectedPass.encodedValue,
+                  launchUrl: fields.launchUrl || undefined,
+                  visualMatrix: selectedPass.visualMatrix || undefined,
+                  visualSize: selectedPass.visualSize,
+                  eventDate: fields.eventDate || undefined,
+                  notes: fields.notes || undefined,
+                  color: selectedPass.color ?? "#0f766e",
+                });
+              }}
+            />
+          </section>
+        </div>
+      ) : null}
 
       <DeleteAccountDialog
         isOpen={isDeleteOpen}
@@ -486,6 +433,78 @@ export function VaultApp() {
         onConfirm={() => void handleDeleteAccount()}
       />
     </main>
+  );
+}
+
+type AddPassDialogProps = {
+  draft: Draft;
+  decodeState: "idle" | "decoding" | "success" | "error";
+  decodeMessage: string;
+  onDraftChange: (draft: Draft) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onCancel: () => void;
+};
+
+function AddPassDialog({ draft, decodeState, decodeMessage, onDraftChange, onSubmit, onCancel }: AddPassDialogProps) {
+  return (
+    <div className="dialog-backdrop" role="presentation" onMouseDown={onCancel}>
+      <section className="pass-dialog add-dialog" role="dialog" aria-modal="true" aria-labelledby="add-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
+        <button type="button" className="modal-close" onClick={onCancel} aria-label="Close add pass dialog">
+          <X size={18} />
+        </button>
+        <div className="modal-heading">
+          <div className="add-rail-icon"><Plus size={18} /></div>
+          <div>
+            <h2 id="add-dialog-title">Add pass details</h2>
+            <p>The code was read locally. Add a few details before saving.</p>
+          </div>
+        </div>
+        <form className="pass-form" onSubmit={onSubmit}>
+          <div className="field-grid">
+            <label>
+              Ticket title
+              <input value={draft.title} onChange={(event) => onDraftChange({ ...draft, title: event.target.value })} placeholder="Train home" autoFocus />
+            </label>
+            <label>
+              Issuer
+              <input value={draft.issuer} onChange={(event) => onDraftChange({ ...draft, issuer: event.target.value })} placeholder="Airline, venue, transit" />
+            </label>
+            <label>
+              Date
+              <input type="date" value={draft.eventDate} onChange={(event) => onDraftChange({ ...draft, eventDate: event.target.value })} />
+            </label>
+            <label>
+              Type
+              <select value={draft.codeType} onChange={(event) => onDraftChange({ ...draft, codeType: event.target.value as CodeType, format: event.target.value === "qr" ? "QR_CODE" : "CODE_128" })}>
+                <option value="qr">QR code</option>
+                <option value="barcode">Barcode</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            Encoded value
+            <textarea value={draft.encodedValue} onChange={(event) => onDraftChange({ ...draft, encodedValue: event.target.value, launchUrl: draft.launchUrl || inferLaunchUrlFromPayload(event.target.value) })} rows={3} />
+          </label>
+          {draft.codeType === "qr" ? (
+            <label>
+              Opens when scanned
+              <input value={draft.launchUrl} onChange={(event) => onDraftChange({ ...draft, launchUrl: event.target.value })} placeholder="https://example.com/ticket" />
+            </label>
+          ) : null}
+          <label>
+            Notes
+            <input value={draft.notes} onChange={(event) => onDraftChange({ ...draft, notes: event.target.value })} placeholder="Gate, seat, confirmation number" />
+          </label>
+          <div className="form-footer">
+            <div className={`decode-status ${decodeState}`}>
+              {decodeState === "success" ? <Check size={15} /> : <AlertCircle size={15} />}
+              <span>{decodeMessage || "Photos are decoded locally."}</span>
+            </div>
+            <button type="submit" className="primary-button"><Plus size={16} />Save pass</button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
 

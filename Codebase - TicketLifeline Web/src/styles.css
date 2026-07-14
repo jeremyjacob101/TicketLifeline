@@ -308,12 +308,12 @@ select:focus {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 240px minmax(430px, 1fr) minmax(320px, 420px);
+  grid-template-columns: 240px minmax(0, 1fr) 300px;
 }
 
 .side-rail,
 .vault-column,
-.detail-pane {
+.add-rail {
   min-height: 100vh;
 }
 
@@ -480,6 +480,65 @@ select:focus {
   gap: 18px;
 }
 
+.add-rail {
+  padding: 24px 22px;
+  border-left: 1px solid var(--border);
+  background: #fbfcfc;
+}
+
+.add-rail-heading,
+.modal-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.add-rail-heading {
+  margin-bottom: 20px;
+}
+
+.add-rail-heading h2,
+.modal-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.add-rail-heading p,
+.modal-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.add-rail-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #dff3ef;
+  color: var(--accent);
+}
+
+.add-drop-target {
+  min-height: 210px;
+  padding: 22px 14px;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.add-drop-target small {
+  flex-basis: auto;
+}
+
+.add-status {
+  align-items: flex-start;
+  margin-top: 14px;
+}
+
 .top-bar {
   display: flex;
   align-items: center;
@@ -609,6 +668,12 @@ select:focus {
   margin-bottom: 10px;
 }
 
+.section-title > div p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .section-title span {
   min-width: 28px;
   height: 24px;
@@ -714,6 +779,52 @@ select:focus {
   display: grid;
   align-content: start;
   gap: 18px;
+}
+
+.pass-dialog {
+  position: relative;
+  width: min(100%, 560px);
+  max-height: min(90vh, 760px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.24);
+}
+
+.pass-dialog .detail-content {
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.add-dialog {
+  padding: 24px;
+}
+
+.add-dialog .modal-heading {
+  margin-bottom: 20px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.modal-close:hover {
+  background: #f8fafb;
+  color: var(--text);
 }
 
 .detail-header {
@@ -920,15 +1031,20 @@ select:focus {
     grid-template-columns: 220px minmax(0, 1fr);
   }
 
-  .detail-pane {
+  .add-rail {
     grid-column: 2;
     min-height: auto;
     padding: 0 24px 24px;
+    border-left: 0;
+    border-top: 1px solid var(--border);
   }
 
-  .detail-content,
-  .empty-detail {
-    min-height: auto;
+  .add-rail-heading {
+    margin: 20px 0 14px;
+  }
+
+  .add-drop-target {
+    min-height: 120px;
   }
 }
 
@@ -944,7 +1060,7 @@ select:focus {
 
   .side-rail,
   .vault-column,
-  .detail-pane {
+  .add-rail {
     min-height: auto;
   }
 
@@ -957,7 +1073,7 @@ select:focus {
     margin-top: 0;
   }
 
-  .detail-pane {
+  .add-rail {
     grid-column: 1;
     padding: 0 18px 18px;
   }
