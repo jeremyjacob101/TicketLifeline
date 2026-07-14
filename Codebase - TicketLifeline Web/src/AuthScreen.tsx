@@ -105,6 +105,14 @@ export function AuthScreen() {
         >
           {mode === "signIn" ? "Need an account?" : "Already have an account?"}
         </button>
+        <a
+          className="privacy-link"
+          href="https://github.com/jeremyjacob101/TicketLifeline/blob/main/PRIVACY.md"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Privacy Policy
+        </a>
       </section>
     </main>
   );

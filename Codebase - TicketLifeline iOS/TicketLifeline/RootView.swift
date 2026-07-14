@@ -98,6 +98,8 @@ private struct AuthView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                Link("Privacy Policy", destination: AppLinks.privacyPolicy)
+                    .font(.footnote.weight(.semibold))
             }
             .padding(28)
         }

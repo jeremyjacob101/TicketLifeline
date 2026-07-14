@@ -2,7 +2,7 @@ import SwiftUI
 
 struct VaultView: View {
     @ObservedObject var appState: AppState
-    @State private var isShowingScanner = false
+    @State private var presentedSheet: SheetDestination?
 
     var body: some View {
         NavigationStack {
@@ -15,7 +15,7 @@ struct VaultView: View {
                     } description: {
                         Text("Scan a digital QR code to keep it handy here.")
                     } actions: {
-                        Button("Scan QR Code") { isShowingScanner = true }
+                        Button("Scan QR Code") { presentedSheet = .scanner }
                             .buttonStyle(.borderedProminent)
                     }
                 } else {
@@ -32,19 +32,116 @@ struct VaultView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Sign Out") { appState.signOut() }
+                    Menu {
+                        Button {
+                            presentedSheet = .account
+                        } label: {
+                            Label("Account Settings", systemImage: "person.crop.circle")
+                        }
+                        Link(destination: AppLinks.privacyPolicy) {
+                            Label("Privacy Policy", systemImage: "hand.raised")
+                        }
+                        Divider()
+                        Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right") {
+                            appState.signOut()
+                        }
+                    } label: {
+                        Label("Account", systemImage: "person.crop.circle")
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { isShowingScanner = true } label: {
+                    Button { presentedSheet = .scanner } label: {
                         Label("Scan QR Code", systemImage: "qrcode.viewfinder")
                     }
                 }
             }
-            .sheet(isPresented: $isShowingScanner) {
-                ScanCodeView(appState: appState)
+            .sheet(item: $presentedSheet) { destination in
+                switch destination {
+                case .scanner:
+                    ScanCodeView(appState: appState)
+                case .account:
+                    AccountSettingsView(appState: appState)
+                }
             }
             .refreshable { try? await appState.refreshCodes() }
             .task { try? await appState.refreshCodes() }
+        }
+    }
+
+    private enum SheetDestination: String, Identifiable {
+        case scanner
+        case account
+
+        var id: String { rawValue }
+    }
+}
+
+private struct AccountSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var appState: AppState
+    @State private var isConfirmingDeletion = false
+    @State private var isDeleting = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Account") {
+                    LabeledContent("Username", value: appState.session?.username ?? "Signed in")
+                    Link(destination: AppLinks.privacyPolicy) {
+                        Label("Privacy Policy", systemImage: "hand.raised")
+                    }
+                }
+
+                Section {
+                    Button("Delete Account", systemImage: "trash", role: .destructive) {
+                        isConfirmingDeletion = true
+                    }
+                    .disabled(isDeleting)
+                } footer: {
+                    Text("Permanently removes your account, every saved QR code and barcode, and all active web and iOS sessions.")
+                }
+
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("Account Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .disabled(isDeleting)
+                }
+            }
+            .confirmationDialog(
+                "Permanently delete your account?",
+                isPresented: $isConfirmingDeletion,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Account Permanently", role: .destructive) {
+                    Task { await deleteAccount() }
+                }
+                Button("Keep Account", role: .cancel) {}
+            } message: {
+                Text("This deletes all of your TicketLifeline data and cannot be undone.")
+            }
+        }
+        .interactiveDismissDisabled(isDeleting)
+    }
+
+    private func deleteAccount() async {
+        errorMessage = nil
+        isDeleting = true
+        do {
+            try await appState.deleteAccount()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            isDeleting = false
         }
     }
 }

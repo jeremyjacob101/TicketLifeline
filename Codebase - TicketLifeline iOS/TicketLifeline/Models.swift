@@ -101,6 +101,19 @@ final class AppState: ObservableObject {
         KeychainStore.remove(key: "ticketlifeline.convex.session")
     }
 
+    func deleteAccount() async throws {
+        let session = try await refreshedSession()
+        isLoading = true
+        defer { isLoading = false }
+        _ = try await client.mutation(
+            "users:deleteAccount",
+            args: EmptyMutationArgs(),
+            token: session.token,
+            returning: DeleteAccountResult.self
+        )
+        signOut()
+    }
+
     func refreshCodes() async throws {
         let session = try await refreshedSession()
         isLoading = true
@@ -164,6 +177,12 @@ private struct CreatePass: Encodable {
     let eventDate: String?
     let notes: String?
     let color: String?
+}
+
+private struct EmptyMutationArgs: Encodable {}
+
+private struct DeleteAccountResult: Decodable {
+    let deletedPasses: Int
 }
 
 enum AppError: LocalizedError {

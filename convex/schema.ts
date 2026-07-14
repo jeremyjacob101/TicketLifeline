@@ -2,8 +2,13 @@ import { defineSchema, defineTable } from "convex/server";
 import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
-const { users: _authUsers, ...restAuthTables } = authTables;
+const {
+  users: _authUsers,
+  authVerifiers: _authVerifiers,
+  ...restAuthTables
+} = authTables;
 void _authUsers;
+void _authVerifiers;
 
 export default defineSchema({
   ...restAuthTables,
@@ -20,6 +25,12 @@ export default defineSchema({
     .index("email", ["email"])
     .index("username", ["username"])
     .index("phone", ["phone"]),
+  authVerifiers: defineTable({
+    sessionId: v.optional(v.id("authSessions")),
+    signature: v.optional(v.string()),
+  })
+    .index("signature", ["signature"])
+    .index("sessionId", ["sessionId"]),
   passes: defineTable({
     ownerId: v.id("users"),
     title: v.string(),

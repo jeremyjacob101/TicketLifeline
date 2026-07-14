@@ -10,6 +10,7 @@ import {
   Plus,
   QrCode,
   Search,
+  Trash2,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { DragEvent } from "react";
@@ -40,6 +41,8 @@ type Draft = {
 };
 
 const accentColors = ["#0f766e", "#2563eb", "#7c3aed", "#c2410c"];
+const privacyPolicyUrl =
+  "https://github.com/jeremyjacob101/TicketLifeline/blob/main/PRIVACY.md";
 const emptyDraft: Draft = {
   title: "",
   issuer: "",
@@ -60,12 +63,16 @@ export function VaultApp() {
   const createPass = useMutation(api.passes.create);
   const removePass = useMutation(api.passes.remove);
   const markOpened = useMutation(api.passes.markOpened);
+  const deleteAccount = useMutation(api.users.deleteAccount);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<Id<"passes"> | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [decodeState, setDecodeState] = useState<"idle" | "decoding" | "success" | "error">("idle");
   const [decodeMessage, setDecodeMessage] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const passList = passes ?? [];
   const filteredPasses = useMemo(() => {
@@ -186,6 +193,18 @@ export function VaultApp() {
     }
   }
 
+  async function handleDeleteAccount() {
+    setDeleteError("");
+    setIsDeletingAccount(true);
+    try {
+      await deleteAccount({});
+      await signOut();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Could not delete your account.");
+      setIsDeletingAccount(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <aside className="side-rail">
@@ -210,10 +229,19 @@ export function VaultApp() {
             <p>Emergency copy</p>
             <span>Stored QR patterns open on any device.</span>
           </div>
-          <button type="button" className="icon-button" onClick={() => void signOut()}>
-            <LogOut size={17} />
-            <span className="sr-only">Sign out</span>
-          </button>
+          <div className="rail-account-actions">
+            <a href={privacyPolicyUrl} target="_blank" rel="noreferrer">
+              Privacy
+            </a>
+            <button type="button" className="delete-account-link" onClick={() => setIsDeleteOpen(true)}>
+              <Trash2 size={14} />
+              Delete account
+            </button>
+            <button type="button" className="icon-button" onClick={() => void signOut()}>
+              <LogOut size={17} />
+              <span className="sr-only">Sign out</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -410,6 +438,68 @@ export function VaultApp() {
           </div>
         )}
       </aside>
+
+      <DeleteAccountDialog
+        isOpen={isDeleteOpen}
+        isDeleting={isDeletingAccount}
+        error={deleteError}
+        onCancel={() => {
+          setIsDeleteOpen(false);
+          setDeleteError("");
+        }}
+        onConfirm={() => void handleDeleteAccount()}
+      />
     </main>
+  );
+}
+
+type DeleteAccountDialogProps = {
+  isOpen: boolean;
+  isDeleting: boolean;
+  error: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+function DeleteAccountDialog({
+  isOpen,
+  isDeleting,
+  error,
+  onCancel,
+  onConfirm,
+}: DeleteAccountDialogProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="dialog-backdrop" role="presentation" onMouseDown={isDeleting ? undefined : onCancel}>
+      <section
+        className="delete-account-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-account-title"
+        aria-describedby="delete-account-description"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <span className="dialog-icon" aria-hidden="true">
+          <Trash2 size={22} />
+        </span>
+        <div>
+          <h2 id="delete-account-title">Permanently delete your account?</h2>
+          <p id="delete-account-description">
+            This removes your TicketLifeline account, every saved QR code and barcode,
+            and all active sessions across web and iOS. This cannot be undone.
+          </p>
+        </div>
+        {error ? <p className="form-error">{error}</p> : null}
+        <div className="dialog-actions">
+          <button type="button" className="text-button" onClick={onCancel} disabled={isDeleting}>
+            Keep account
+          </button>
+          <button type="button" className="danger-button" onClick={onConfirm} disabled={isDeleting}>
+            {isDeleting ? "Deleting everything..." : "Delete account permanently"}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
