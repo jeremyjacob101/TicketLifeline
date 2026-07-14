@@ -3,7 +3,6 @@
 /.env
 /.env.local
 /.env.*.local
-/convex/_generated/
 /convex/tsconfig.tsbuildinfo
 /buildServer.json
 

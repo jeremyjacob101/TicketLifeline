@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { DragEvent } from "react";
-import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
+import { api } from "@ticketlifeline/convex-api";
+import type { Id } from "@ticketlifeline/convex-data-model";
 import type { CodeType, Pass } from "./types";
 import {
   getDroppedImageFile,

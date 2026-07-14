@@ -1,4 +1,4 @@
-import type { Doc } from "../../convex/_generated/dataModel";
+import type { Doc } from "@ticketlifeline/convex-data-model";
 
 export type Pass = Doc<"passes">;
 export type CodeType = "qr" | "barcode";

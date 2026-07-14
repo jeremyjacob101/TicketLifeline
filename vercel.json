@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run web:build",
+  "outputDirectory": "Codebase - TicketLifeline Web/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
