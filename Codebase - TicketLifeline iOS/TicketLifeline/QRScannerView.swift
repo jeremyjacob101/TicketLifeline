@@ -4,51 +4,58 @@ import SwiftUI
 struct ScanCodeView: View {
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
-    @State private var scannedValue: String?
+    @State private var detectedCode: DetectedCode?
     @State private var label = ""
     @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                if let scannedValue {
-                    QRCodeImage(payload: scannedValue).frame(width: 190, height: 190)
-                    Text("QR code found").font(.title2.bold())
-                    Text(scannedValue).lineLimit(3).multilineTextAlignment(.center).foregroundStyle(.secondary)
+                if let detectedCode {
+                    Group {
+                        if detectedCode.isBarcode {
+                            BarcodeImage(payload: detectedCode.payload)
+                        } else {
+                            QRCodeImage(payload: detectedCode.payload)
+                        }
+                    }
+                    .frame(width: 220, height: 190)
+                    Text(detectedCode.isBarcode ? "Barcode found" : "QR code found").font(.title2.bold())
+                    Text(detectedCode.payload).lineLimit(3).multilineTextAlignment(.center).foregroundStyle(.secondary)
                     TextField("Name this code (optional)", text: $label)
                         .textFieldStyle(.roundedBorder)
-                    Button("Save QR Code") {
-                        save(scannedValue)
+                    Button(detectedCode.isBarcode ? "Save Barcode" : "Save QR Code") {
+                        save(detectedCode)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(appState.isLoading)
                     if let errorMessage {
                         Text(errorMessage).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center)
                     }
-                    Button("Scan another") { self.scannedValue = nil }
+                    Button("Scan another") { self.detectedCode = nil }
                 } else {
-                    QRScannerView { value in scannedValue = value }
+                    QRScannerView { code in detectedCode = code }
                         .clipShape(RoundedRectangle(cornerRadius: 22))
                         .overlay { RoundedRectangle(cornerRadius: 22).stroke(.white.opacity(0.8), lineWidth: 3) }
                         .frame(height: 380)
-                    Text("Point the camera at a QR code")
+                    Text("Point the camera at a code")
                         .font(.headline)
-                    Text("Only QR codes are scanned in this first version.")
+                    Text("QR codes and common ticket barcodes are supported.")
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
             }
             .padding(24)
-            .navigationTitle("Scan QR Code")
+            .navigationTitle("Scan Code")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
         }
     }
 
-    private func save(_ value: String) {
+    private func save(_ code: DetectedCode) {
         errorMessage = nil
         Task {
             do {
-                try await appState.saveCode(payload: value, label: label)
+                try await appState.saveCode(code, label: label)
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription
@@ -58,7 +65,7 @@ struct ScanCodeView: View {
 }
 
 struct QRScannerView: UIViewControllerRepresentable {
-    let onCodeScanned: (String) -> Void
+    let onCodeScanned: (DetectedCode) -> Void
 
     func makeUIViewController(context: Context) -> ScannerController {
         ScannerController(onCodeScanned: onCodeScanned)
@@ -69,10 +76,10 @@ struct QRScannerView: UIViewControllerRepresentable {
 
 final class ScannerController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     private let session = AVCaptureSession()
-    private let onCodeScanned: (String) -> Void
+    private let onCodeScanned: (DetectedCode) -> Void
     private var hasReportedCode = false
 
-    init(onCodeScanned: @escaping (String) -> Void) {
+    init(onCodeScanned: @escaping (DetectedCode) -> Void) {
         self.onCodeScanned = onCodeScanned
         super.init(nibName: nil, bundle: nil)
     }
@@ -111,8 +118,13 @@ final class ScannerController: UIViewController, AVCaptureMetadataOutputObjectsD
         guard session.canAddOutput(output) else { showCameraError(); return }
         session.addOutput(output)
         output.setMetadataObjectsDelegate(self, queue: .main)
-        guard output.availableMetadataObjectTypes.contains(.qr) else { showCameraError(); return }
-        output.metadataObjectTypes = [.qr]
+        let supportedTypes: [AVMetadataObject.ObjectType] = [
+            .qr, .aztec, .dataMatrix, .pdf417,
+            .code39, .code93, .code128,
+            .ean8, .ean13, .upce, .interleaved2of5, .itf14, .codabar,
+        ]
+        output.metadataObjectTypes = supportedTypes.filter(output.availableMetadataObjectTypes.contains)
+        guard !output.metadataObjectTypes.isEmpty else { showCameraError(); return }
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
         previewLayer.frame = view.bounds
@@ -122,7 +134,7 @@ final class ScannerController: UIViewController, AVCaptureMetadataOutputObjectsD
 
     private func showCameraError() {
         let label = UILabel()
-        label.text = "Camera access is required to scan QR codes. Enable it in Settings and try again."
+        label.text = "Camera access is required to scan codes. Enable it in Settings and try again."
         label.numberOfLines = 0
         label.textAlignment = .center
         label.textColor = .secondaryLabel
@@ -142,7 +154,29 @@ final class ScannerController: UIViewController, AVCaptureMetadataOutputObjectsD
         hasReportedCode = true
         session.stopRunning()
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        onCodeScanned(value)
+        onCodeScanned(DetectedCode(
+            payload: value,
+            format: Self.normalizedFormat(for: object.type),
+            codeType: object.type == .qr ? "qr" : "barcode"
+        ))
+    }
+
+    private static func normalizedFormat(for type: AVMetadataObject.ObjectType) -> String {
+        switch type {
+        case .qr: "QR_CODE"
+        case .aztec: "AZTEC"
+        case .dataMatrix: "DATA_MATRIX"
+        case .pdf417: "PDF417"
+        case .code39, .code39Mod43: "CODE_39"
+        case .code93: "CODE_93"
+        case .code128: "CODE_128"
+        case .ean8: "EAN_8"
+        case .ean13: "EAN_13"
+        case .upce: "UPC_E"
+        case .interleaved2of5, .itf14: "ITF"
+        case .codabar: "CODABAR"
+        default: type.rawValue.uppercased()
+        }
     }
 
     deinit { session.stopRunning() }

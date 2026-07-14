@@ -1,8 +1,15 @@
+import PhotosUI
 import SwiftUI
 
 struct VaultView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var appState: AppState
+    @ObservedObject var importCoordinator: ImportCoordinator
     @State private var presentedSheet: SheetDestination?
+    @State private var isPhotoPickerPresented = false
+    @State private var photoSelection: PhotosPickerItem?
+    @State private var isReadingPhoto = false
+    @State private var importError: String?
 
     var body: some View {
         NavigationStack {
@@ -13,9 +20,11 @@ struct VaultView: View {
                     ContentUnavailableView {
                         Label("No QR codes yet", systemImage: "qrcode.viewfinder")
                     } description: {
-                        Text("Scan a digital QR code to keep it handy here.")
+                        Text("Scan a code or choose a screenshot to keep it handy here.")
                     } actions: {
-                        Button("Scan QR Code") { presentedSheet = .scanner }
+                        Button("Choose Photo") { isPhotoPickerPresented = true }
+                            .buttonStyle(.borderedProminent)
+                        Button("Scan Code") { presentedSheet = .scanner }
                             .buttonStyle(.borderedProminent)
                     }
                 } else {
@@ -50,8 +59,19 @@ struct VaultView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { presentedSheet = .scanner } label: {
-                        Label("Scan QR Code", systemImage: "qrcode.viewfinder")
+                    Menu {
+                        Button {
+                            isPhotoPickerPresented = true
+                        } label: {
+                            Label("Choose Photo", systemImage: "photo.badge.plus")
+                        }
+                        Button {
+                            presentedSheet = .scanner
+                        } label: {
+                            Label("Scan Code", systemImage: "qrcode.viewfinder")
+                        }
+                    } label: {
+                        Label("Add Code", systemImage: "plus")
                     }
                 }
             }
@@ -61,18 +81,98 @@ struct VaultView: View {
                     ScanCodeView(appState: appState)
                 case .account:
                     AccountSettingsView(appState: appState)
+                case .photo(let codes):
+                    PhotoCodeImportView(appState: appState, codes: codes)
                 }
             }
+            .photosPicker(
+                isPresented: $isPhotoPickerPresented,
+                selection: $photoSelection,
+                matching: .images,
+                preferredItemEncoding: .current
+            )
+            .onChange(of: photoSelection) { _, selection in
+                guard let selection else { return }
+                Task { await importPhoto(selection) }
+            }
+            .onChange(of: importCoordinator.pendingAction) { _, _ in
+                handlePendingImportAction()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                appState.reloadSharedSession()
+                guard appState.isSignedIn else { return }
+                Task { try? await appState.refreshCodes() }
+            }
             .refreshable { try? await appState.refreshCodes() }
-            .task { try? await appState.refreshCodes() }
+            .task {
+                handlePendingImportAction()
+            }
+            .overlay {
+                if isReadingPhoto {
+                    ProgressView("Reading screenshot…")
+                        .padding(20)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                }
+            }
+            .alert("Couldn’t Import Code", isPresented: Binding(
+                get: { importError != nil },
+                set: { if !$0 { importError = nil } }
+            )) {
+                Button("OK", role: .cancel) { importError = nil }
+                Button("Choose Another Photo") {
+                    importError = nil
+                    isPhotoPickerPresented = true
+                }
+            } message: {
+                Text(importError ?? "Try another image.")
+            }
         }
     }
 
-    private enum SheetDestination: String, Identifiable {
+    private func handlePendingImportAction() {
+        guard appState.isSignedIn,
+              let action = importCoordinator.consumePendingAction() else { return }
+        switch action {
+        case .upload:
+            isPhotoPickerPresented = true
+        case .scan:
+            presentedSheet = .scanner
+        }
+    }
+
+    private func importPhoto(_ selection: PhotosPickerItem) async {
+        isReadingPhoto = true
+        importError = nil
+        defer {
+            isReadingPhoto = false
+            photoSelection = nil
+        }
+        do {
+            guard let photo = try await selection.loadTransferable(type: ImportedPhoto.self) else {
+                throw CodeImportError.invalidImage
+            }
+            let codes = try await CodeImageDecoder.detect(in: photo.data)
+            presentedSheet = .photo(codes)
+        } catch is CancellationError {
+            return
+        } catch {
+            importError = error.localizedDescription
+        }
+    }
+
+    private enum SheetDestination: Identifiable {
         case scanner
         case account
+        case photo([DetectedCode])
 
-        var id: String { rawValue }
+        var id: String {
+            switch self {
+            case .scanner: "scanner"
+            case .account: "account"
+            case .photo: "photo"
+            }
+        }
     }
 }
 

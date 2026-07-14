@@ -38,11 +38,11 @@ TicketLifeline retains your account and saved code data while your account remai
 
 Deleting the app or clearing browser data removes locally stored session information but does not, by itself, delete your cloud account. Use the in-app Delete Account action to permanently delete cloud data.
 
-## Camera and Image Processing
+## Camera, Photo Selection, and Share Sheet Processing
 
-The iOS app requests camera access only when you choose to scan a QR code. The web app can also read a code from an image you choose or drop into the page.
+The iOS app requests camera access only when you choose to scan a QR code or barcode. You can also select a screenshot or image through Apple’s system photo picker, or send one image to TicketLifeline from the iOS Share Sheet. The system photo picker lets you choose a specific image without granting TicketLifeline access to your full photo library. The web app can similarly read a code from an image you choose or drop into the page.
 
-Camera frames and selected images are processed locally on your device or in your browser to read the code. TicketLifeline does not upload or store the original camera image or selected image. Only the decoded code content and compact digital representation you choose to save are transmitted to the TicketLifeline service.
+Camera frames and selected or shared images are processed locally on your device or in your browser to read the code. Original images are held only transiently while decoding and are not retained or uploaded to TicketLifeline or Convex. Only the decoded code content and metadata you choose to save are transmitted to the TicketLifeline service. If you are not signed in when using the iOS Share Sheet, TicketLifeline retains neither the image nor a pending import.
 
 ## Tracking and Advertising
 
@@ -64,7 +64,9 @@ We may disclose information if required by law, legal process, or a valid govern
 
 TicketLifeline may request access to the following device capability:
 
-- **Camera:** Used only to scan QR codes when you choose to open the scanner.
+- **Camera:** Used only to scan QR codes and barcodes when you choose to open the scanner.
+
+TicketLifeline uses Apple’s system photo picker for image selection and does not request broad Photo Library permission.
 
 TicketLifeline does not request access to your location, contacts, microphone, health data, or payment information.
 

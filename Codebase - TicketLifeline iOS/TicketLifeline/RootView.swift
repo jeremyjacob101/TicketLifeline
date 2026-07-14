@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @ObservedObject var appState: AppState
+    @ObservedObject var importCoordinator: ImportCoordinator
 
     var body: some View {
         Group {
@@ -11,13 +12,13 @@ struct RootView: View {
             } else if !appState.isSignedIn {
                 AuthView(appState: appState)
             } else {
-                VaultView(appState: appState)
+                VaultView(appState: appState, importCoordinator: importCoordinator)
             }
             #else
             if !appState.isSignedIn {
                 AuthView(appState: appState)
             } else {
-                VaultView(appState: appState)
+                VaultView(appState: appState, importCoordinator: importCoordinator)
             }
             #endif
         }

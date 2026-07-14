@@ -7,17 +7,51 @@ settings:
   base:
     SWIFT_VERSION: "5.0"
     PRODUCT_BUNDLE_IDENTIFIER: com.ticketlifeline.app
+    DEVELOPMENT_TEAM: UZ7YLA6V9D
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CONVEX_URL: https://ideal-zebra-516.convex.cloud
 targets:
   TicketLifeline:
     type: application
     platform: iOS
+    dependencies:
+      - target: TicketLifelineShareExtension
+        embed: true
     sources:
       - path: TicketLifeline
     settings:
       base:
         INFOPLIST_FILE: TicketLifeline/Info.plist
         GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: TicketLifeline/TicketLifeline.entitlements
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     scheme:
-      testTargets: []
+      testTargets:
+        - TicketLifelineTests
+  TicketLifelineShareExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: TicketLifelineShareExtension
+      - path: TicketLifeline/ConvexClient.swift
+      - path: TicketLifeline/CodeImport.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ticketlifeline.app.share
+        INFOPLIST_FILE: TicketLifelineShareExtension/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: TicketLifelineShareExtension/TicketLifelineShareExtension.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+  TicketLifelineTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: TicketLifelineTests
+    dependencies:
+      - target: TicketLifeline
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ticketlifeline.app.tests
+        GENERATE_INFOPLIST_FILE: YES

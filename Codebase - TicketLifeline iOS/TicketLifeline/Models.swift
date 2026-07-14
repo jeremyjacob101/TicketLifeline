@@ -81,7 +81,7 @@ final class AppState: ObservableObject {
 
     init() {
         client = ConvexClient()
-        session = KeychainStore.load(ConvexSession.self, key: "ticketlifeline.convex.session")
+        session = KeychainStore.load(ConvexSession.self, key: KeychainStore.sessionKey)
         if session != nil {
             Task { try? await refreshCodes() }
         }
@@ -98,46 +98,41 @@ final class AppState: ObservableObject {
     func signOut() {
         session = nil
         savedCodes = []
-        KeychainStore.remove(key: "ticketlifeline.convex.session")
+        KeychainStore.remove(key: KeychainStore.sessionKey)
+    }
+
+    func reloadSharedSession() {
+        if let stored = KeychainStore.load(ConvexSession.self, key: KeychainStore.sessionKey) {
+            session = stored
+        }
     }
 
     func deleteAccount() async throws {
-        let session = try await refreshedSession()
         isLoading = true
         defer { isLoading = false }
-        _ = try await client.mutation(
-            "users:deleteAccount",
-            args: EmptyMutationArgs(),
-            token: session.token,
-            returning: DeleteAccountResult.self
-        )
+        let _: DeleteAccountResult = try await withTrustedSession { session in
+            try await self.client.mutation(
+                "users:deleteAccount",
+                args: EmptyMutationArgs(),
+                token: session.token,
+                returning: DeleteAccountResult.self
+            )
+        }
         signOut()
     }
 
     func refreshCodes() async throws {
-        let session = try await refreshedSession()
         isLoading = true
         defer { isLoading = false }
-        savedCodes = try await client.query("passes:list", token: session.token)
+        savedCodes = try await withTrustedSession { session in
+            try await self.client.query("passes:list", token: session.token)
+        }
     }
 
-    func saveCode(payload: String, label: String) async throws {
-        let session = try await refreshedSession()
-        let title = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        let input = CreatePass(
-            title: title.isEmpty ? "Scanned QR code" : title,
-            issuer: nil,
-            codeType: "qr",
-            format: "QR_CODE",
-            encodedValue: payload,
-            launchUrl: nil,
-            visualMatrix: nil,
-            visualSize: nil,
-            eventDate: nil,
-            notes: nil,
-            color: "#4f46e5"
-        )
-        _ = try await client.mutation("passes:create", args: input, token: session.token, returning: String.self)
+    func saveCode(_ code: DetectedCode, label: String) async throws {
+        let _: String = try await withTrustedSession { session in
+            try await self.client.createPass(code: code, title: label, token: session.token)
+        }
         try await refreshCodes()
     }
 
@@ -151,44 +146,36 @@ final class AppState: ObservableObject {
         let tokens = try await client.signIn(username: cleanUsername, password: password, flow: flow)
         let newSession = ConvexSession(username: cleanUsername, token: tokens.token, refreshToken: tokens.refreshToken)
         session = newSession
-        KeychainStore.save(newSession, key: "ticketlifeline.convex.session")
+        KeychainStore.save(newSession, key: KeychainStore.sessionKey)
         try await refreshCodes()
     }
 
-    private func refreshedSession() async throws -> ConvexSession {
-        guard let session else { throw AppError.message("Please sign in again.") }
-        let tokens = try await client.refresh(refreshToken: session.refreshToken)
-        let refreshed = ConvexSession(username: session.username, token: tokens.token, refreshToken: tokens.refreshToken)
-        self.session = refreshed
-        KeychainStore.save(refreshed, key: "ticketlifeline.convex.session")
-        return refreshed
+    private func withTrustedSession<Value: Sendable>(
+        _ operation: @escaping @Sendable (ConvexSession) async throws -> Value
+    ) async throws -> Value {
+        do {
+            let currentSession = session
+            let value = try await TrustedSessionManager.shared.perform(
+                fallbackSession: currentSession,
+                operation
+            )
+            if let stored = await TrustedSessionManager.shared.storedSession() {
+                session = stored
+            }
+            return value
+        } catch {
+            if error.isAuthorizationFailure,
+               await TrustedSessionManager.shared.storedSession() == nil {
+                session = nil
+                savedCodes = []
+            }
+            throw error
+        }
     }
-}
-
-private struct CreatePass: Encodable {
-    let title: String
-    let issuer: String?
-    let codeType: String
-    let format: String?
-    let encodedValue: String
-    let launchUrl: String?
-    let visualMatrix: String?
-    let visualSize: Int?
-    let eventDate: String?
-    let notes: String?
-    let color: String?
 }
 
 private struct EmptyMutationArgs: Encodable {}
 
 private struct DeleteAccountResult: Decodable {
     let deletedPasses: Int
-}
-
-enum AppError: LocalizedError {
-    case message(String)
-
-    var errorDescription: String? {
-        switch self { case .message(let text): text }
-    }
 }

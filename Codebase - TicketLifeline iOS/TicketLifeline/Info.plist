@@ -21,13 +21,34 @@
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>ConvexURL</key>
-    <string>https://ideal-zebra-516.convex.cloud</string>
+    <string>$(CONVEX_URL)</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <key>KeychainAccessGroup</key>
+    <string>$(AppIdentifierPrefix)com.ticketlifeline.shared</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSCameraUsageDescription</key>
-    <string>TicketLifeline uses the camera to scan and save your QR codes.</string>
+    <string>TicketLifeline uses the camera to scan and save QR codes and barcodes.</string>
+    <key>UIApplicationShortcutItems</key>
+    <array>
+        <dict>
+            <key>UIApplicationShortcutItemIconSymbolName</key>
+            <string>photo.badge.plus</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>Upload Code</string>
+            <key>UIApplicationShortcutItemType</key>
+            <string>com.ticketlifeline.app.upload-code</string>
+        </dict>
+        <dict>
+            <key>UIApplicationShortcutItemIconSymbolName</key>
+            <string>qrcode.viewfinder</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>Scan Code</string>
+            <key>UIApplicationShortcutItemType</key>
+            <string>com.ticketlifeline.app.scan-code</string>
+        </dict>
+    </array>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>

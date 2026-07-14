@@ -1,13 +1,13 @@
 import Foundation
 import Security
 
-struct ConvexSession: Codable {
+struct ConvexSession: Codable, Sendable {
     let username: String
     let token: String
     let refreshToken: String
 }
 
-struct ConvexTokens: Decodable {
+struct ConvexTokens: Decodable, Sendable {
     let token: String
     let refreshToken: String
 }
@@ -22,7 +22,7 @@ private struct ConvexResponse<Value: Decodable>: Decodable {
     let errorMessage: String?
 }
 
-struct ConvexClient {
+struct ConvexClient: Sendable {
     private let baseURL: URL
 
     init() {
@@ -68,19 +68,51 @@ struct ConvexClient {
         try await request(endpoint: "api/mutation", body: FunctionCall(path: path, args: args), token: token)
     }
 
+    func createPass(code: DetectedCode, title: String, token: String) async throws -> String {
+        try await mutation(
+            "passes:create",
+            args: CreatePass(code: code, title: title),
+            token: token,
+            returning: String.self
+        )
+    }
+
     private func request<Body: Encodable, Value: Decodable>(endpoint: String, body: Body, token: String?) async throws -> Value {
         var request = URLRequest(url: baseURL.appending(path: endpoint))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         request.httpBody = try JSONEncoder().encode(body)
-        let (data, urlResponse) = try await URLSession.shared.data(for: request)
+        let (data, urlResponse): (Data, URLResponse)
+        do {
+            (data, urlResponse) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw AppError.network(error.localizedDescription)
+        }
         guard let response = urlResponse as? HTTPURLResponse else { throw AppError.message("No response from Convex.") }
-        let envelope = try JSONDecoder().decode(ConvexResponse<Value>.self, from: data)
+        let envelope: ConvexResponse<Value>
+        do {
+            envelope = try JSONDecoder().decode(ConvexResponse<Value>.self, from: data)
+        } catch {
+            throw AppError.message("Convex returned an unreadable response.")
+        }
         guard (200...299).contains(response.statusCode), envelope.status == "success", let value = envelope.value else {
-            throw AppError.message(envelope.errorMessage ?? "Convex request failed.")
+            let message = envelope.errorMessage ?? "Convex request failed."
+            if response.statusCode == 401 || response.statusCode == 403 || Self.isAuthorizationMessage(message) {
+                throw AppError.unauthorized(message)
+            }
+            throw AppError.message(message)
         }
         return value
+    }
+
+    private static func isAuthorizationMessage(_ message: String) -> Bool {
+        let value = message.lowercased()
+        return [
+            "unauthenticated", "unauthorized", "not authenticated",
+            "authentication required", "invalid refresh token", "session expired",
+            "refresh token used outside", "missing refresh token",
+        ].contains(where: value.contains)
     }
 }
 
@@ -93,34 +125,180 @@ private struct FunctionCall<Args: Encodable>: Encodable {
 private struct EmptyArgs: Encodable {}
 
 enum KeychainStore {
+    static let sessionKey = "ticketlifeline.convex.session"
+    private static let service = "com.ticketlifeline.app"
+
     static func save<Value: Encodable>(_ value: Value, key: String) {
         guard let data = try? JSONEncoder().encode(value) else { return }
-        remove(key: key)
-        SecItemAdd([
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: "com.ticketlifeline.app",
-            kSecAttrAccount: key,
-            kSecValueData: data,
-        ] as CFDictionary, nil)
+        guard let sharedAccessGroup else {
+            saveToLegacyGroup(data, key: key)
+            return
+        }
+        let status = upsert(data, key: key, accessGroup: sharedAccessGroup)
+        if status != errSecSuccess {
+            saveToLegacyGroup(data, key: key)
+        }
     }
 
-    static func load<Value: Decodable>(_ type: Value.Type, key: String) -> Value? {
+    static func load<Value: Codable>(_ type: Value.Type, key: String) -> Value? {
+        if let shared: Value = load(type, key: key, accessGroup: sharedAccessGroup) {
+            return shared
+        }
+        guard let legacy: Value = load(type, key: key, accessGroup: nil) else { return nil }
+        save(legacy, key: key)
+        return legacy
+    }
+
+    static func remove(key: String) {
+        removeFromSharedGroup(key: key)
+        removeFromLegacyGroup(key: key)
+    }
+
+    private static var sharedAccessGroup: String? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "KeychainAccessGroup") as? String,
+              !value.isEmpty,
+              !value.contains("$(") else { return nil }
+        return value
+    }
+
+    private static func load<Value: Decodable>(_ type: Value.Type, key: String, accessGroup: String?) -> Value? {
         var result: CFTypeRef?
-        let status = SecItemCopyMatching([
+        var query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
-            kSecAttrService: "com.ticketlifeline.app",
+            kSecAttrService: service,
             kSecAttrAccount: key,
             kSecReturnData: true,
-        ] as CFDictionary, &result)
+        ]
+        if let accessGroup { query[kSecAttrAccessGroup] = accessGroup }
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
         guard status == errSecSuccess, let data = result as? Data else { return nil }
         return try? JSONDecoder().decode(type, from: data)
     }
 
-    static func remove(key: String) {
+    private static func saveToLegacyGroup(_ data: Data, key: String) {
+        _ = upsert(data, key: key, accessGroup: nil)
+    }
+
+    private static func upsert(_ data: Data, key: String, accessGroup: String?) -> OSStatus {
+        var query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: key,
+        ]
+        if let accessGroup { query[kSecAttrAccessGroup] = accessGroup }
+        let values: [CFString: Any] = [
+            kSecValueData: data,
+            kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        let updateStatus = SecItemUpdate(query as CFDictionary, values as CFDictionary)
+        guard updateStatus == errSecItemNotFound else { return updateStatus }
+        query.merge(values) { _, new in new }
+        return SecItemAdd(query as CFDictionary, nil)
+    }
+
+    private static func removeFromSharedGroup(key: String) {
+        guard let sharedAccessGroup else { return }
         SecItemDelete([
             kSecClass: kSecClassGenericPassword,
-            kSecAttrService: "com.ticketlifeline.app",
+            kSecAttrService: service,
+            kSecAttrAccount: key,
+            kSecAttrAccessGroup: sharedAccessGroup,
+        ] as CFDictionary)
+    }
+
+    private static func removeFromLegacyGroup(key: String) {
+        SecItemDelete([
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
             kSecAttrAccount: key,
         ] as CFDictionary)
+    }
+}
+
+enum AppError: LocalizedError, Sendable {
+    case message(String)
+    case network(String)
+    case unauthorized(String)
+
+    var isAuthorizationFailure: Bool {
+        if case .unauthorized = self { return true }
+        return false
+    }
+
+    var errorDescription: String? {
+        switch self {
+        case .message(let text), .network(let text), .unauthorized(let text): text
+        }
+    }
+}
+
+extension Error {
+    var isAuthorizationFailure: Bool {
+        (self as? AppError)?.isAuthorizationFailure == true
+    }
+}
+
+actor TrustedSessionManager {
+    static let shared = TrustedSessionManager()
+
+    private var refreshTask: Task<ConvexSession, Error>?
+
+    func storedSession() -> ConvexSession? {
+        KeychainStore.load(ConvexSession.self, key: KeychainStore.sessionKey)
+    }
+
+    func perform<Value: Sendable>(
+        fallbackSession: ConvexSession? = nil,
+        _ operation: @escaping @Sendable (ConvexSession) async throws -> Value
+    ) async throws -> Value {
+        guard let original = storedSession() ?? fallbackSession else {
+            throw AppError.unauthorized("Please sign in again.")
+        }
+
+        do {
+            return try await operation(original)
+        } catch where error.isAuthorizationFailure {
+            if let latest = storedSession(), latest.token != original.token {
+                do {
+                    return try await operation(latest)
+                } catch where !error.isAuthorizationFailure {
+                    throw error
+                } catch {
+                    // The newer access token is also expired; refresh it below.
+                }
+            }
+
+            let refreshed = try await refreshSession(fallback: original)
+            do {
+                return try await operation(refreshed)
+            } catch where error.isAuthorizationFailure {
+                KeychainStore.remove(key: KeychainStore.sessionKey)
+                throw error
+            }
+        }
+    }
+
+    private func refreshSession(fallback: ConvexSession) async throws -> ConvexSession {
+        if let refreshTask { return try await refreshTask.value }
+
+        let task = Task<ConvexSession, Error> {
+            let source = KeychainStore.load(ConvexSession.self, key: KeychainStore.sessionKey) ?? fallback
+            do {
+                let tokens = try await ConvexClient().refresh(refreshToken: source.refreshToken)
+                let refreshed = ConvexSession(
+                    username: source.username,
+                    token: tokens.token,
+                    refreshToken: tokens.refreshToken
+                )
+                KeychainStore.save(refreshed, key: KeychainStore.sessionKey)
+                return refreshed
+            } catch where error.isAuthorizationFailure {
+                KeychainStore.remove(key: KeychainStore.sessionKey)
+                throw error
+            }
+        }
+        refreshTask = task
+        defer { refreshTask = nil }
+        return try await task.value
     }
 }

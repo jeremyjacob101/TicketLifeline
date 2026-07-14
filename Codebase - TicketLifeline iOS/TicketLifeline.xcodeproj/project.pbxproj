@@ -7,46 +7,107 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0FBB733115E1D003724F5D9A /* CodeImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE18AA8F15C0EAE3E387E901 /* CodeImport.swift */; };
+		27EC5AC52E1AA73122A91DF5 /* CodeImageDecoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC9F6EC82F7D3E0CB5B124C /* CodeImageDecoderTests.swift */; };
 		31C49529093806E989FDAB85 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4CE2365F00E44F4216BA107D /* Assets.xcassets */; };
+		37A474A339A7350DEC4B5102 /* ConvexClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B4DA3DEE03F9F9F78E3928C /* ConvexClient.swift */; };
+		46A21FF731D25741149AE976 /* BarcodeCityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50F12716F79C709CAB3546E /* BarcodeCityView.swift */; };
 		489EDE64C0295FF886C0EB16 /* QRTreeShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0DB75EC346F7A940600D47B1 /* QRTreeShaders.metal */; };
 		4F951470E538A77A6AE112FE /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6DB76867DC0A62820E6E9CA /* Models.swift */; };
+		53974AD117C92746E02DD744 /* BarcodeCityShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 2D0D8274A5DBCC7CF397A2C4 /* BarcodeCityShaders.metal */; };
+		559FA3816E1C87A5A90AD28D /* CodeImportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8774F8A0AC031FBA8968183 /* CodeImportViews.swift */; };
 		571270E6ED24C8C2215D56AF /* QRCodeImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC1A00B33B9DD27A214F5BB /* QRCodeImage.swift */; };
 		6EEC14A43470163C2D9695D5 /* VaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E221E4A4D02E27F5ACED4F /* VaultView.swift */; };
+		73847553B83E23ECED421BCB /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AE947B826DF1F148594D86 /* ShareViewController.swift */; };
 		87AF89AF3FE2293ED1B1DF14 /* CodeArtView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57ADBF98E2F51E5F823E440D /* CodeArtView.swift */; };
 		9BC2860CAB1DC10F648628FA /* TicketLifelineApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FBF97F2ADBE38DE907D4418 /* TicketLifelineApp.swift */; };
-		A55DCE70C018B93F0495EAB1 /* BarcodeCityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55DCE70C018B93F0495EAB0 /* BarcodeCityView.swift */; };
 		AFF819AC3558D370FBC2ADCD /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A17C41BDF5CAD1CAE18DB8 /* RootView.swift */; };
-		C17C1F000000000000000001 /* BarcodeCityShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = C17C1F000000000000000000 /* BarcodeCityShaders.metal */; };
 		C46FE746F47658E496699E1F /* ConvexClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B4DA3DEE03F9F9F78E3928C /* ConvexClient.swift */; };
+		C4AFDF3FB12237379565C033 /* CodeImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE18AA8F15C0EAE3E387E901 /* CodeImport.swift */; };
 		C8390B97B3845ECC40627E2B /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3226219E80B77ECC999152E4 /* QRScannerView.swift */; };
 		CA5D2190D770AEDBDC72FFC9 /* AppLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B0A4988E6AD8B1F36BC4C4D /* AppLinks.swift */; };
+		D50A5EB9FC6061CDF952966A /* ImportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A627D33030F74594E87AAA2 /* ImportCoordinator.swift */; };
 		EB31DF5DBADCDFC0134902DE /* QRTreeMetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4C98B804910C614F05CD23 /* QRTreeMetalView.swift */; };
+		F38008121DAC085CD814C98A /* TicketLifelineShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 604D401B8C730BEC9757DA1C /* TicketLifelineShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A6486000D24133C3DF8BD888 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 40D488D8C5A4A26AE8B5F7DC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 107BFCE0872E6D39F2F7657A;
+			remoteInfo = TicketLifelineShareExtension;
+		};
+		D8E7D138D0AF08EA889DA757 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 40D488D8C5A4A26AE8B5F7DC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4F3F27B8B822E84C8B8EA1A3;
+			remoteInfo = TicketLifeline;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		EA4FCE8E6D207DBE5B49E497 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F38008121DAC085CD814C98A /* TicketLifelineShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		00FF1A9FE3E065688A627213 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0DB75EC346F7A940600D47B1 /* QRTreeShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = QRTreeShaders.metal; sourceTree = "<group>"; };
+		1AC9F6EC82F7D3E0CB5B124C /* CodeImageDecoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeImageDecoderTests.swift; sourceTree = "<group>"; };
+		2B251920CB8BF06FB09CDD82 /* TicketLifelineTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TicketLifelineTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2D0D8274A5DBCC7CF397A2C4 /* BarcodeCityShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = BarcodeCityShaders.metal; sourceTree = "<group>"; };
 		3226219E80B77ECC999152E4 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		37B5A0BF6DB89AD589AC8915 /* TicketLifeline.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TicketLifeline.entitlements; sourceTree = "<group>"; };
 		3B0A4988E6AD8B1F36BC4C4D /* AppLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLinks.swift; sourceTree = "<group>"; };
+		4570BB7E358A740967841A8D /* TicketLifelineShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TicketLifelineShareExtension.entitlements; sourceTree = "<group>"; };
 		4CE2365F00E44F4216BA107D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		54D0E72632CF69EB20139A71 /* TicketLifeline.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TicketLifeline.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		54D0E72632CF69EB20139A71 /* TicketLifeline.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TicketLifeline.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		57ADBF98E2F51E5F823E440D /* CodeArtView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeArtView.swift; sourceTree = "<group>"; };
 		5FBF97F2ADBE38DE907D4418 /* TicketLifelineApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TicketLifelineApp.swift; sourceTree = "<group>"; };
+		604D401B8C730BEC9757DA1C /* TicketLifelineShareExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TicketLifelineShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		6A627D33030F74594E87AAA2 /* ImportCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportCoordinator.swift; sourceTree = "<group>"; };
 		7CC1A00B33B9DD27A214F5BB /* QRCodeImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeImage.swift; sourceTree = "<group>"; };
 		80A17C41BDF5CAD1CAE18DB8 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		8358C05B3C94241375BAE1AB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9B4DA3DEE03F9F9F78E3928C /* ConvexClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexClient.swift; sourceTree = "<group>"; };
-		A55DCE70C018B93F0495EAB0 /* BarcodeCityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeCityView.swift; sourceTree = "<group>"; };
-		C17C1F000000000000000000 /* BarcodeCityShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = BarcodeCityShaders.metal; sourceTree = "<group>"; };
+		B50F12716F79C709CAB3546E /* BarcodeCityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeCityView.swift; sourceTree = "<group>"; };
+		BE18AA8F15C0EAE3E387E901 /* CodeImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeImport.swift; sourceTree = "<group>"; };
 		D4E221E4A4D02E27F5ACED4F /* VaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultView.swift; sourceTree = "<group>"; };
 		D6DB76867DC0A62820E6E9CA /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		E8774F8A0AC031FBA8968183 /* CodeImportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeImportViews.swift; sourceTree = "<group>"; };
 		ED4C98B804910C614F05CD23 /* QRTreeMetalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRTreeMetalView.swift; sourceTree = "<group>"; };
+		F1AE947B826DF1F148594D86 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		4A5D8D8E8F86CF579F5C9858 /* TicketLifelineShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				8358C05B3C94241375BAE1AB /* Info.plist */,
+				F1AE947B826DF1F148594D86 /* ShareViewController.swift */,
+				4570BB7E358A740967841A8D /* TicketLifelineShareExtension.entitlements */,
+			);
+			path = TicketLifelineShareExtension;
+			sourceTree = "<group>";
+		};
 		4FE322C99B368BCDA2A3121F = {
 			isa = PBXGroup;
 			children = (
 				7EB7F58C89797C61493BE089 /* TicketLifeline */,
+				4A5D8D8E8F86CF579F5C9858 /* TicketLifelineShareExtension */,
+				7E98B6749D6BB40F7E6D73E9 /* TicketLifelineTests */,
 				6D2E9911A4260C6002B96A16 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -55,8 +116,18 @@
 			isa = PBXGroup;
 			children = (
 				54D0E72632CF69EB20139A71 /* TicketLifeline.app */,
+				604D401B8C730BEC9757DA1C /* TicketLifelineShareExtension.appex */,
+				2B251920CB8BF06FB09CDD82 /* TicketLifelineTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		7E98B6749D6BB40F7E6D73E9 /* TicketLifelineTests */ = {
+			isa = PBXGroup;
+			children = (
+				1AC9F6EC82F7D3E0CB5B124C /* CodeImageDecoderTests.swift */,
+			);
+			path = TicketLifelineTests;
 			sourceTree = "<group>";
 		};
 		7EB7F58C89797C61493BE089 /* TicketLifeline */ = {
@@ -64,10 +135,13 @@
 			children = (
 				3B0A4988E6AD8B1F36BC4C4D /* AppLinks.swift */,
 				4CE2365F00E44F4216BA107D /* Assets.xcassets */,
-				C17C1F000000000000000000 /* BarcodeCityShaders.metal */,
-				A55DCE70C018B93F0495EAB0 /* BarcodeCityView.swift */,
+				2D0D8274A5DBCC7CF397A2C4 /* BarcodeCityShaders.metal */,
+				B50F12716F79C709CAB3546E /* BarcodeCityView.swift */,
 				57ADBF98E2F51E5F823E440D /* CodeArtView.swift */,
+				BE18AA8F15C0EAE3E387E901 /* CodeImport.swift */,
+				E8774F8A0AC031FBA8968183 /* CodeImportViews.swift */,
 				9B4DA3DEE03F9F9F78E3928C /* ConvexClient.swift */,
+				6A627D33030F74594E87AAA2 /* ImportCoordinator.swift */,
 				00FF1A9FE3E065688A627213 /* Info.plist */,
 				D6DB76867DC0A62820E6E9CA /* Models.swift */,
 				7CC1A00B33B9DD27A214F5BB /* QRCodeImage.swift */,
@@ -75,6 +149,7 @@
 				ED4C98B804910C614F05CD23 /* QRTreeMetalView.swift */,
 				0DB75EC346F7A940600D47B1 /* QRTreeShaders.metal */,
 				80A17C41BDF5CAD1CAE18DB8 /* RootView.swift */,
+				37B5A0BF6DB89AD589AC8915 /* TicketLifeline.entitlements */,
 				5FBF97F2ADBE38DE907D4418 /* TicketLifelineApp.swift */,
 				D4E221E4A4D02E27F5ACED4F /* VaultView.swift */,
 			);
@@ -84,16 +159,35 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		107BFCE0872E6D39F2F7657A /* TicketLifelineShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7EC1A6B9F164E54D196B96E1 /* Build configuration list for PBXNativeTarget "TicketLifelineShareExtension" */;
+			buildPhases = (
+				07BEB69D3D8664ADDBDB1B92 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TicketLifelineShareExtension;
+			packageProductDependencies = (
+			);
+			productName = TicketLifelineShareExtension;
+			productReference = 604D401B8C730BEC9757DA1C /* TicketLifelineShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		4F3F27B8B822E84C8B8EA1A3 /* TicketLifeline */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 165BE67675EEFF02E2D6A26D /* Build configuration list for PBXNativeTarget "TicketLifeline" */;
 			buildPhases = (
 				63FF5BDDFC96807FEF9888E6 /* Sources */,
 				219F1FBE0353C0F239C1DE4E /* Resources */,
+				EA4FCE8E6D207DBE5B49E497 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				1AF2A3AD88BC20BF8A76B457 /* PBXTargetDependency */,
 			);
 			name = TicketLifeline;
 			packageProductDependencies = (
@@ -102,6 +196,24 @@
 			productReference = 54D0E72632CF69EB20139A71 /* TicketLifeline.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D1F8A4F91848DFBC1E741245 /* TicketLifelineTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A821D8AF25B936BBDA0F53EC /* Build configuration list for PBXNativeTarget "TicketLifelineTests" */;
+			buildPhases = (
+				234A6F95DD1187B5DB612C8C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B952F9DB2238EF6A69049980 /* PBXTargetDependency */,
+			);
+			name = TicketLifelineTests;
+			packageProductDependencies = (
+			);
+			productName = TicketLifelineTests;
+			productReference = 2B251920CB8BF06FB09CDD82 /* TicketLifelineTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -109,7 +221,18 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2660;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					107BFCE0872E6D39F2F7657A = {
+						DevelopmentTeam = UZ7YLA6V9D;
+					};
+					4F3F27B8B822E84C8B8EA1A3 = {
+						DevelopmentTeam = UZ7YLA6V9D;
+					};
+					D1F8A4F91848DFBC1E741245 = {
+						DevelopmentTeam = UZ7YLA6V9D;
+					};
+				};
 			};
 			buildConfigurationList = 8E88DF242021252885D9FF30 /* Build configuration list for PBXProject "TicketLifeline" */;
 			developmentRegion = en;
@@ -126,6 +249,8 @@
 			projectRoot = "";
 			targets = (
 				4F3F27B8B822E84C8B8EA1A3 /* TicketLifeline */,
+				107BFCE0872E6D39F2F7657A /* TicketLifelineShareExtension */,
+				D1F8A4F91848DFBC1E741245 /* TicketLifelineTests */,
 			);
 		};
 /* End PBXProject section */
@@ -142,15 +267,36 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		07BEB69D3D8664ADDBDB1B92 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0FBB733115E1D003724F5D9A /* CodeImport.swift in Sources */,
+				37A474A339A7350DEC4B5102 /* ConvexClient.swift in Sources */,
+				73847553B83E23ECED421BCB /* ShareViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		234A6F95DD1187B5DB612C8C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				27EC5AC52E1AA73122A91DF5 /* CodeImageDecoderTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		63FF5BDDFC96807FEF9888E6 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				CA5D2190D770AEDBDC72FFC9 /* AppLinks.swift in Sources */,
-				C17C1F000000000000000001 /* BarcodeCityShaders.metal in Sources */,
-				A55DCE70C018B93F0495EAB1 /* BarcodeCityView.swift in Sources */,
+				53974AD117C92746E02DD744 /* BarcodeCityShaders.metal in Sources */,
+				46A21FF731D25741149AE976 /* BarcodeCityView.swift in Sources */,
 				87AF89AF3FE2293ED1B1DF14 /* CodeArtView.swift in Sources */,
+				C4AFDF3FB12237379565C033 /* CodeImport.swift in Sources */,
+				559FA3816E1C87A5A90AD28D /* CodeImportViews.swift in Sources */,
 				C46FE746F47658E496699E1F /* ConvexClient.swift in Sources */,
+				D50A5EB9FC6061CDF952966A /* ImportCoordinator.swift in Sources */,
 				4F951470E538A77A6AE112FE /* Models.swift in Sources */,
 				571270E6ED24C8C2215D56AF /* QRCodeImage.swift in Sources */,
 				C8390B97B3845ECC40627E2B /* QRScannerView.swift in Sources */,
@@ -164,7 +310,37 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		1AF2A3AD88BC20BF8A76B457 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 107BFCE0872E6D39F2F7657A /* TicketLifelineShareExtension */;
+			targetProxy = A6486000D24133C3DF8BD888 /* PBXContainerItemProxy */;
+		};
+		B952F9DB2238EF6A69049980 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4F3F27B8B822E84C8B8EA1A3 /* TicketLifeline */;
+			targetProxy = D8E7D138D0AF08EA889DA757 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		00AEB29ECA399644D8F02704 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ticketlifeline.app.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TicketLifeline.app/TicketLifeline";
+			};
+			name = Debug;
+		};
 		35ECB5CC8293BE17A5EB6ED6 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -198,12 +374,13 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CONVEX_URL = "https://ideal-zebra-516.convex.cloud";
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = UZ7YLA6V9D;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -219,16 +396,50 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ticketlifeline.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		4E5B3C57320543F9E6DBC14C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TicketLifelineShareExtension/TicketLifelineShareExtension.entitlements;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TicketLifelineShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ticketlifeline.app.share;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		83D8B853A5D5DD06A6E23467 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TicketLifelineShareExtension/TicketLifelineShareExtension.entitlements;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TicketLifelineShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ticketlifeline.app.share;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -265,12 +476,13 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CONVEX_URL = "https://ideal-zebra-516.convex.cloud";
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = UZ7YLA6V9D;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -280,15 +492,32 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ticketlifeline.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		B8C17FCE0269415C69B369FA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ticketlifeline.app.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TicketLifeline.app/TicketLifeline";
 			};
 			name = Release;
 		};
@@ -296,6 +525,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = TicketLifeline/TicketLifeline.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TicketLifeline/Info.plist;
@@ -312,6 +542,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = TicketLifeline/TicketLifeline.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TicketLifeline/Info.plist;
@@ -336,11 +567,29 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		7EC1A6B9F164E54D196B96E1 /* Build configuration list for PBXNativeTarget "TicketLifelineShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				83D8B853A5D5DD06A6E23467 /* Debug */,
+				4E5B3C57320543F9E6DBC14C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		8E88DF242021252885D9FF30 /* Build configuration list for PBXProject "TicketLifeline" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				35ECB5CC8293BE17A5EB6ED6 /* Debug */,
 				8739337E9DDDC86BF69020A9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A821D8AF25B936BBDA0F53EC /* Build configuration list for PBXNativeTarget "TicketLifelineTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				00AEB29ECA399644D8F02704 /* Debug */,
+				B8C17FCE0269415C69B369FA /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

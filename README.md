@@ -38,7 +38,9 @@ A ticket should still work when the original email is buried, the screenshot is 
 TicketLifeline is designed to make that recovery path simple:
 
 - scan a QR code with the iPhone camera
-- decode PNG, JPG, HEIC, and HEIF images locally in the browser
+- decode screenshots and photos locally on iOS or in the browser
+- save directly from the iOS Share Sheet after taking a screenshot
+- jump straight to photo upload or camera scanning from Home Screen quick actions
 - save QR codes and common barcodes with useful labels and notes
 - regenerate a sharp, scan-ready code instead of preserving a blurry screenshot
 - synchronize one private vault across web and iOS
@@ -49,6 +51,9 @@ TicketLifeline is designed to make that recovery path simple:
 - Shared username-and-password authentication across web and iOS.
 - Per-user Convex data isolation for every pass query and mutation.
 - Local image decoding; original photos and camera frames are never uploaded.
+- Native iOS photo import through the limited system picker, with no full Photo Library permission.
+- One-tap Share Extension imports and Home Screen Upload/Scan quick actions.
+- QR, Aztec, Data Matrix, PDF417, Code 39/93/128, EAN, UPC, ITF, and Codabar decoding.
 - Compact QR visual-matrix preservation for faithful reconstruction.
 - Search across titles, issuers, formats, payloads, links, and notes.
 - Native iOS camera scanning with an explicit camera permission description.
@@ -62,7 +67,7 @@ TicketLifeline is designed to make that recovery path simple:
 TicketLifeline has three connected layers:
 
 1. **Web** — React 19 + TypeScript + Vite.
-2. **iOS** — SwiftUI for iOS 17 and newer, with AVFoundation scanning and Metal visualizations.
+2. **iOS** — SwiftUI for iOS 17 and newer, with local Vision decoding, AVFoundation scanning, a Share Extension, Home Screen quick actions, and Metal visualizations.
 3. **Backend** — Convex queries, mutations, authentication, and synchronized storage shared by both clients.
 
 ```text
@@ -75,6 +80,7 @@ iOS app ───────┘       │
 ## Privacy by Design
 
 - Camera frames and selected images are decoded locally.
+- Share Sheet images are discarded immediately after local decoding and are never uploaded.
 - Only the code content and metadata a user chooses to save are sent to Convex.
 - No advertising, tracking, or third-party analytics SDKs.
 - Passwords are stored as secure hashes rather than plaintext.
@@ -128,7 +134,7 @@ xcodegen generate
 open TicketLifeline.xcodeproj
 ```
 
-The current development backend URL is configured through `ConvexURL` in `TicketLifeline/Info.plist`.
+The app and embedded Share Extension read the same `CONVEX_URL` build setting from `project.yml`, ensuring that both save to the same Convex deployment.
 
 ## Shared Account Deletion
 
@@ -158,6 +164,8 @@ Local credentials are cleared only after the server confirms deletion.
 │   └── src/                             Auth, vault, scanner, and pass UI
 ├── Codebase - TicketLifeline iOS/       SwiftUI iPhone app
 │   ├── TicketLifeline/                  App source and asset catalog
+│   ├── TicketLifelineShareExtension/    Native Share Sheet import UI
+│   ├── TicketLifelineTests/             Local Vision decoder fixtures and tests
 │   ├── TicketLifeline.xcodeproj/        Generated Xcode project
 │   └── project.yml                      XcodeGen source of truth
 ├── docs/images/                         README artwork
@@ -176,6 +184,8 @@ Local credentials are cleared only after the server confirms deletion.
 - `Codebase - TicketLifeline iOS/TicketLifeline/Models.swift` owns iOS authentication and synchronized state.
 - `Codebase - TicketLifeline iOS/TicketLifeline/VaultView.swift` contains the native vault and account settings.
 - `Codebase - TicketLifeline iOS/TicketLifeline/QRScannerView.swift` handles camera authorization and scanning.
+- `Codebase - TicketLifeline iOS/TicketLifeline/CodeImport.swift` owns local Vision decoding and format normalization.
+- `Codebase - TicketLifeline iOS/TicketLifelineShareExtension/ShareViewController.swift` imports screenshots directly from the Share Sheet.
 
 ## App Store Preparation
 
@@ -188,13 +198,16 @@ Local credentials are cleared only after the server confirms deletion.
 - Opaque App Store icon: included
 - In-app account deletion: included
 - In-app privacy-policy access: included
+- Home Screen Upload/Scan quick actions: included
+- Embedded image Share Extension: included
+- Keychain Sharing between app and extension: configured
 
 Before release, upload a signed archive to TestFlight, complete App Privacy responses, provide a reviewer demo account, add screenshots and support metadata, and publish the privacy-policy URL in App Store Connect.
 
 ## Current Limitations
 
 - Username/password recovery is not yet available.
-- The iOS app currently creates QR entries through camera scanning; richer pass metadata editing lives on the web.
+- Share Sheet imports intentionally save one selected code per shared image with an automatic title; richer pass metadata editing lives on the web.
 - A live Convex connection is required to read or change the synchronized vault.
 
 ## Links
