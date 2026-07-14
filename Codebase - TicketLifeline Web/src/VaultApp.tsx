@@ -41,6 +41,16 @@ type Draft = {
 };
 
 const accentColors = ["#0f766e", "#2563eb", "#7c3aed", "#c2410c"];
+
+function formatDate(timestamp: number) {
+  const d = new Date(timestamp);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = String(d.getFullYear()).slice(2);
+  const hours = String(d.getHours()).padStart(2, "0");
+  const mins = String(d.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} - ${hours}:${mins}`;
+}
 const privacyPolicyUrl =
   "https://github.com/jeremyjacob101/TicketLifeline/blob/main/PRIVACY.md";
 const emptyDraft: Draft = {
@@ -414,7 +424,7 @@ export function VaultApp() {
                   <span className="pass-swatch" style={{ background: pass.color ?? "#0f766e" }} />
                   <span>
                     <strong>{pass.title}</strong>
-                    <small>{pass.issuer || pass.format || "Saved code"}</small>
+                    <small>{formatDate(pass.createdAt)}</small>
                   </span>
                   <ArrowUpRight size={16} />
                 </button>

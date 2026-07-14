@@ -69,7 +69,7 @@ export const list = query({
     const userId = await requireUserId(ctx);
     return await ctx.db
       .query("passes")
-      .withIndex("by_owner_updated", (q) => q.eq("ownerId", userId))
+      .withIndex("by_owner_created", (q) => q.eq("ownerId", userId))
       .order("desc")
       .collect();
   },
