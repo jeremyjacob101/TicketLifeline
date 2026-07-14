@@ -16,6 +16,32 @@ type EditFields = {
   launchUrl: string;
 };
 
+function dateInputValue(timestamp: number) {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function displayDateValue(pass: Pass) {
+  return pass.eventDate || dateInputValue(pass.createdAt);
+}
+
+function displayDateLabel(pass: Pass) {
+  if (pass.eventDate) {
+    const [year, month, day] = pass.eventDate.split("-");
+    if (year && month && day) return `${day}/${month}/${year.slice(2)}`;
+  }
+  const date = new Date(pass.createdAt);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(2);
+  const hours = String(date.getHours()).padStart(2, "0");
+  const mins = String(date.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} - ${hours}:${mins}`;
+}
+
 export function PassDetail({
   pass,
   onDelete,
@@ -31,7 +57,7 @@ export function PassDetail({
     title: pass.title,
     issuer: pass.issuer ?? "",
     notes: pass.notes ?? "",
-    eventDate: pass.eventDate ?? "",
+    eventDate: displayDateValue(pass),
     launchUrl: pass.launchUrl ?? "",
   });
   const scanUrl = pass.codeType === "qr" ? getPassScanUrl(pass) : "";
@@ -41,7 +67,7 @@ export function PassDetail({
       title: pass.title,
       issuer: pass.issuer ?? "",
       notes: pass.notes ?? "",
-      eventDate: pass.eventDate ?? "",
+      eventDate: displayDateValue(pass),
       launchUrl: pass.launchUrl ?? "",
     });
     setIsEditing(true);
@@ -52,7 +78,10 @@ export function PassDetail({
   }
 
   function handleSave() {
-    onUpdate(edit);
+    onUpdate({
+      ...edit,
+      eventDate: edit.eventDate === dateInputValue(pass.createdAt) ? "" : edit.eventDate,
+    });
     setIsEditing(false);
   }
 
@@ -83,8 +112,9 @@ export function PassDetail({
             <input value={edit.issuer} onChange={(e) => setEdit({ ...edit, issuer: e.target.value })} />
           </label>
           <label>
-            Date
+            Pass date
             <input type="date" value={edit.eventDate} onChange={(e) => setEdit({ ...edit, eventDate: e.target.value })} />
+            <small className="field-hint">Defaults to the created date. Change it only to set a different preferred date.</small>
           </label>
           <label>
             Notes
@@ -128,7 +158,11 @@ export function PassDetail({
         </div>
         <div>
           <dt>Date</dt>
-          <dd>{pass.eventDate || "Anytime"}</dd>
+          <dd>{displayDateLabel(pass)}</dd>
+        </div>
+        <div>
+          <dt>Created</dt>
+          <dd>{displayDateLabel({ ...pass, eventDate: undefined })}</dd>
         </div>
         <div>
           <dt>Notes</dt>

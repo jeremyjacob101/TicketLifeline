@@ -52,6 +52,22 @@ function formatDate(timestamp: number) {
   const mins = String(d.getMinutes()).padStart(2, "0");
   return `${day}/${month}/${year} - ${hours}:${mins}`;
 }
+
+function preferredDateTimestamp(pass: Pass) {
+  if (pass.eventDate) {
+    const timestamp = Date.parse(`${pass.eventDate}T00:00:00`);
+    if (!Number.isNaN(timestamp)) return timestamp;
+  }
+  return pass.createdAt;
+}
+
+function formatPreferredDate(pass: Pass) {
+  if (pass.eventDate) {
+    const [year, month, day] = pass.eventDate.split("-");
+    if (year && month && day) return `${day}/${month}/${year.slice(2)}`;
+  }
+  return formatDate(pass.createdAt);
+}
 const privacyPolicyUrl =
   "https://github.com/jeremyjacob101/TicketLifeline/blob/main/PRIVACY.md";
 const emptyDraft: Draft = {
@@ -88,7 +104,10 @@ export function VaultApp() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
-  const passList = passes ?? [];
+  const passList = useMemo(
+    () => [...(passes ?? [])].sort((a, b) => preferredDateTimestamp(b) - preferredDateTimestamp(a)),
+    [passes],
+  );
   const filteredPasses = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return passList;
@@ -99,18 +118,13 @@ export function VaultApp() {
     );
   }, [passList, query]);
 
-  const selectedPass =
-    filteredPasses.find((pass) => pass._id === selectedId) ??
-    filteredPasses[0] ??
-    null;
+  const selectedPass = selectedId
+    ? filteredPasses.find((pass) => pass._id === selectedId) ?? null
+    : filteredPasses[0] ?? null;
 
   useEffect(() => {
-    if (selectedPass) {
+    if (selectedId && selectedPass) {
       void markOpened({ id: selectedPass._id });
-      if (!selectedId) {
-        setSelectedId(selectedPass._id);
-        setIsDetailOpen(true);
-      }
     }
   }, [markOpened, selectedId, selectedPass?._id]);
 
@@ -305,7 +319,7 @@ export function VaultApp() {
                   <span className="pass-swatch" style={{ background: pass.color ?? "#0f766e" }} />
                   <span>
                     <strong>{pass.title}</strong>
-                    <small>{formatDate(pass.createdAt)}</small>
+                    <small>{formatPreferredDate(pass)}</small>
                   </span>
                   <ArrowUpRight size={16} />
                 </button>

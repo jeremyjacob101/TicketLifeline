@@ -11,6 +11,10 @@ struct VaultView: View {
     @State private var isReadingPhoto = false
     @State private var importError: String?
 
+    private var sortedCodes: [SavedCode] {
+        appState.savedCodes.sorted { $0.preferredDate > $1.preferredDate }
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -30,14 +34,14 @@ struct VaultView: View {
                 } else {
                     List {
                         Section {
-                            ForEach(appState.savedCodes) { code in
+                            ForEach(sortedCodes) { code in
                                 NavigationLink(value: code) {
                                     CodeRow(code: code)
                                 }
                             }
                             .onDelete { indexSet in
                                 for index in indexSet {
-                                    Task { try? await appState.deleteCode(appState.savedCodes[index].id) }
+                                    Task { try? await appState.deleteCode(sortedCodes[index].id) }
                                 }
                             }
                         } header: {
@@ -266,6 +270,11 @@ private struct CodeRow: View {
         f.dateFormat = "dd/MM/yy - HH:mm"
         return f
     }()
+    private static let overrideFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "dd/MM/yy"
+        return f
+    }()
 
     var body: some View {
         HStack(spacing: 14) {
@@ -276,7 +285,11 @@ private struct CodeRow: View {
                 .overlay { RoundedRectangle(cornerRadius: 9).stroke(.quaternary) }
             VStack(alignment: .leading, spacing: 4) {
                 Text(code.label).font(.headline)
-                Text(Self.rowFormatter.string(from: code.createdAt))
+                Text(
+                    code.hasDateOverride
+                        ? Self.overrideFormatter.string(from: code.preferredDate)
+                        : Self.rowFormatter.string(from: code.createdAt)
+                )
                     .lineLimit(1)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -300,14 +313,7 @@ struct CodeDetailView: View {
                 Button {
                     displayMode = displayMode == .code ? .art : .code
                 } label: {
-                    Group {
-                        if code.isBarcode {
-                            BarcodeCityView(code: code, isFlat: displayMode == .code)
-                        } else {
-                            QRTreeMetalView(code: code, isFlat: displayMode == .code)
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                    CodePreview(code: code, isFlat: displayMode == .code)
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
@@ -317,7 +323,13 @@ struct CodeDetailView: View {
                 .accessibilityHint("Double tap to switch between the scannable code and its art view")
                 VStack(spacing: 8) {
                     Text(code.label).font(.title2.bold())
-                    Text(code.createdAt, format: .dateTime.month().day().year().hour().minute())
+                    Group {
+                        if code.hasDateOverride {
+                            Text(code.preferredDate, format: .dateTime.month().day().year())
+                        } else {
+                            Text(code.createdAt, format: .dateTime.month().day().year().hour().minute())
+                        }
+                    }
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 PassInfoCard(code: code)
@@ -372,6 +384,22 @@ struct CodeDetailView: View {
     private enum DisplayMode: Hashable { case code, art }
 }
 
+private struct CodePreview: View {
+    let code: SavedCode
+    let isFlat: Bool
+
+    var body: some View {
+        Group {
+            if code.isBarcode {
+                BarcodeCityView(code: code, isFlat: isFlat)
+            } else {
+                QRTreeMetalView(code: code, isFlat: isFlat)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+    }
+}
+
 private struct EditCodeView: View {
     let code: SavedCode
     @ObservedObject var appState: AppState
@@ -390,7 +418,7 @@ private struct EditCodeView: View {
         _title = State(initialValue: code.label)
         _issuer = State(initialValue: code.issuer ?? "")
         _notes = State(initialValue: code.notes ?? "")
-        _eventDate = State(initialValue: code.eventDate ?? "")
+        _eventDate = State(initialValue: code.preferredDateInput)
         _launchURL = State(initialValue: code.launchURL ?? "")
     }
 
@@ -403,7 +431,10 @@ private struct EditCodeView: View {
                 }
                 Section {
                     TextField("Notes", text: $notes)
-                    TextField("Event date", text: $eventDate)
+                    TextField("Pass date", text: $eventDate)
+                    Text("Defaults to the created date. Change it only when this pass should use a different date.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 Section {
                     TextField("Scan URL", text: $launchURL)
@@ -439,6 +470,7 @@ private struct EditCodeView: View {
         errorMessage = nil
         do {
             let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let cleanEventDate = eventDate.trimmingCharacters(in: .whitespacesAndNewlines)
             try await appState.updateCode(
                 code.id,
                 title: cleanTitle.isEmpty ? code.label : cleanTitle,
@@ -449,7 +481,7 @@ private struct EditCodeView: View {
                 launchUrl: launchURL.trimmingCharacters(in: .whitespaces).isEmpty ? nil : launchURL.trimmingCharacters(in: .whitespaces),
                 visualMatrix: code.visualMatrix,
                 visualSize: code.visualSize,
-                eventDate: eventDate.trimmingCharacters(in: .whitespaces).isEmpty ? nil : eventDate.trimmingCharacters(in: .whitespaces),
+                eventDate: cleanEventDate.isEmpty || cleanEventDate == code.createdDateInput ? nil : cleanEventDate,
                 notes: notes.trimmingCharacters(in: .whitespaces).isEmpty ? nil : notes.trimmingCharacters(in: .whitespaces),
                 color: code.color
             )
@@ -481,7 +513,8 @@ private struct PassInfoCard: View {
             InfoRow(label: "Type", value: code.isBarcode ? "Barcode" : "QR code")
             InfoRow(label: "Format", value: code.format ?? "Not available")
             InfoRow(label: "Issuer", value: code.issuer ?? "Not provided")
-            InfoRow(label: "Pass date", value: code.eventDate ?? "Anytime")
+            InfoRow(label: "Pass date", value: code.hasDateOverride ? Self.overrideFormatter.string(from: code.preferredDate) : Self.rowFormatter.string(from: code.createdAt))
+            InfoRow(label: "Created", value: Self.rowFormatter.string(from: code.createdAt))
             InfoRow(label: "Notes", value: code.notes ?? "No notes")
             if let launchURL = code.launchURL {
                 InfoRow(label: "Scan link", value: launchURL)
@@ -490,6 +523,18 @@ private struct PassInfoCard: View {
         .padding(.horizontal)
         .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 14))
     }
+
+    private static let rowFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "dd/MM/yy - HH:mm"
+        return f
+    }()
+
+    private static let overrideFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "dd/MM/yy"
+        return f
+    }()
 }
 
 private struct InfoRow: View {

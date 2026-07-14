@@ -17,6 +17,40 @@ struct SavedCode: Identifiable, Hashable, Decodable {
     let createdAt: Date
 
     var isBarcode: Bool { codeType == "barcode" }
+    var hasDateOverride: Bool {
+        guard let eventDate else { return false }
+        return !eventDate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    var preferredDate: Date {
+        guard hasDateOverride,
+              let eventDate,
+              let date = Self.dateFromInput(eventDate) else {
+            return createdAt
+        }
+        return date
+    }
+    var createdDateInput: String { Self.dateInputString(createdAt) }
+    var preferredDateInput: String {
+        if hasDateOverride, let eventDate { return eventDate }
+        return createdDateInput
+    }
+
+    private static func dateFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }
+
+    private static func dateFromInput(_ value: String) -> Date? {
+        dateFormatter().date(from: value)
+    }
+
+    private static func dateInputString(_ date: Date) -> String {
+        dateFormatter().string(from: date)
+    }
 
     private enum CodingKeys: String, CodingKey {
         case id = "_id"
