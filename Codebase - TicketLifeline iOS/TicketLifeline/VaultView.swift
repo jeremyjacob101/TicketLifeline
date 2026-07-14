@@ -249,6 +249,12 @@ private struct AccountSettingsView: View {
 private struct CodeRow: View {
     let code: SavedCode
 
+    private static let rowFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "dd/MM/yy - HH:mm"
+        return f
+    }()
+
     var body: some View {
         HStack(spacing: 14) {
             CodeImage(code: code)
@@ -258,7 +264,7 @@ private struct CodeRow: View {
                 .overlay { RoundedRectangle(cornerRadius: 9).stroke(.quaternary) }
             VStack(alignment: .leading, spacing: 4) {
                 Text(code.label).font(.headline)
-                Text(code.format ?? (code.isBarcode ? "Barcode" : "QR Code"))
+                Text(Self.rowFormatter.string(from: code.createdAt))
                     .lineLimit(1)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
