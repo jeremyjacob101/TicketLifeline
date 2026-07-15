@@ -25,7 +25,7 @@
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>KeychainAccessGroup</key>
-    <string>$(AppIdentifierPrefix)com.ticketlifeline.shared</string>
+    <string>$(AppIdentifierPrefix)com.jj.ticketlifeline.shared</string>
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionAttributes</key>

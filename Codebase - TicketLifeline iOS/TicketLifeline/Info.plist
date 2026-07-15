@@ -17,15 +17,15 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>ConvexURL</key>
     <string>$(CONVEX_URL)</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>KeychainAccessGroup</key>
-    <string>$(AppIdentifierPrefix)com.ticketlifeline.shared</string>
+    <string>$(AppIdentifierPrefix)com.jj.ticketlifeline.shared</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSCameraUsageDescription</key>
@@ -38,7 +38,7 @@
             <key>UIApplicationShortcutItemTitle</key>
             <string>Upload Code</string>
             <key>UIApplicationShortcutItemType</key>
-            <string>com.ticketlifeline.app.upload-code</string>
+            <string>com.jj.ticketlifeline.upload-code</string>
         </dict>
         <dict>
             <key>UIApplicationShortcutItemIconSymbolName</key>
@@ -46,7 +46,7 @@
             <key>UIApplicationShortcutItemTitle</key>
             <string>Scan Code</string>
             <key>UIApplicationShortcutItemType</key>
-            <string>com.ticketlifeline.app.scan-code</string>
+            <string>com.jj.ticketlifeline.scan-code</string>
         </dict>
     </array>
     <key>UILaunchScreen</key>

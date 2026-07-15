@@ -2,8 +2,8 @@ import SwiftUI
 import UIKit
 
 enum ImportAction: String {
-    case upload = "com.ticketlifeline.app.upload-code"
-    case scan = "com.ticketlifeline.app.scan-code"
+    case upload = "com.jj.ticketlifeline.upload-code"
+    case scan = "com.jj.ticketlifeline.scan-code"
 }
 
 @MainActor

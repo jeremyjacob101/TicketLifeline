@@ -168,7 +168,7 @@ private struct EmptyArgs: Encodable {}
 
 enum KeychainStore {
     static let sessionKey = "ticketlifeline.convex.session"
-    private static let service = "com.ticketlifeline.app"
+    private static let service = "com.jj.ticketlifeline"
 
     static func save<Value: Encodable>(_ value: Value, key: String) {
         guard let data = try? JSONEncoder().encode(value) else { return }

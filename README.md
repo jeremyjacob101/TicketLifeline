@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="App version 1.0" src="https://img.shields.io/badge/App-1.0-0F766E?style=for-the-badge">
+  <img alt="App version 1.0.0" src="https://img.shields.io/badge/App-1.0.0-0F766E?style=for-the-badge">
   <img alt="iOS 17 or newer" src="https://img.shields.io/badge/iOS-17%2B-111827?style=for-the-badge&logo=apple&logoColor=white">
   <img alt="Swift 5" src="https://img.shields.io/badge/Swift-5-F05138?style=for-the-badge&logo=swift&logoColor=white">
   <img alt="React 19.2.6" src="https://img.shields.io/badge/React-19.2.6-0F172A?style=for-the-badge&logo=react&logoColor=61DAFB">
@@ -191,9 +191,9 @@ Local credentials are cleared only after the server confirms deletion.
 
 ## App Store Preparation
 
-- App version: `1.0`
+- App version: `1.0.0`
 - Build: `1`
-- Bundle identifier: `com.ticketlifeline.app`
+- Bundle identifier: `com.jj.ticketlifeline`
 - Minimum iOS version: `17.0`
 - Device family: iPhone
 - Camera usage description: included
