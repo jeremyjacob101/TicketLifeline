@@ -434,6 +434,7 @@ select:focus {
   display: grid;
   place-items: center;
   padding: 20px;
+  overflow: hidden;
   background: rgba(15, 23, 42, 0.52);
   backdrop-filter: blur(4px);
 }
@@ -556,7 +557,7 @@ select:focus {
 
 .modal-upload-target {
   min-height: 176px;
-  margin-bottom: 2px;
+  margin-bottom: 14px;
   flex-wrap: nowrap;
   gap: 10px;
 }
@@ -826,8 +827,13 @@ select:focus {
 .pass-dialog {
   position: relative;
   width: min(100%, 560px);
+  min-width: 0;
+  max-width: 100%;
   max-height: min(90vh, 760px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);

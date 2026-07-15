@@ -288,10 +288,8 @@ export function VaultApp() {
           <a
             href="#add-pass"
             onClick={(event) => {
-              if (isMobile) {
-                event.preventDefault();
-                openAddPass();
-              }
+              event.preventDefault();
+              openAddPass();
             }}
           >
             <Plus size={17} />
@@ -550,7 +548,7 @@ function AddPassDialog({ draft, decodeState, decodeMessage, onDraftChange, onFil
           <div className="field-grid">
             <label>
               Ticket title
-              <input value={draft.title} onChange={(event) => onDraftChange({ ...draft, title: event.target.value })} placeholder="Train home" autoFocus />
+              <input value={draft.title} onChange={(event) => onDraftChange({ ...draft, title: event.target.value })} placeholder="Train home" />
             </label>
             <label>
               Issuer
