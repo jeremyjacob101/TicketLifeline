@@ -54,6 +54,7 @@ TicketLifeline is designed to make that recovery path simple:
 - Local image decoding; original photos and camera frames are never uploaded.
 - Native iOS photo import through the limited system picker, with no full Photo Library permission.
 - One-tap Share Extension imports and Home Screen Upload/Scan quick actions.
+- Responsive web vault with desktop navigation and a compact mobile menu, search, and add-pass flow.
 - QR, Aztec, Data Matrix, PDF417, Code 39/93/128, EAN, UPC, ITF, and Codabar decoding.
 - Compact QR visual-matrix preservation for faithful reconstruction.
 - Search across titles, issuers, formats, payloads, links, and notes.

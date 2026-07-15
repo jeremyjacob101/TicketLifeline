@@ -1,6 +1,6 @@
 # TicketLifeline Privacy Policy
 
-Effective date: July 14, 2026
+Effective date: July 15, 2026
 
 TicketLifeline is a QR code and barcode vault that lets you save, synchronize, and reopen compact digital copies of codes across the TicketLifeline web and iOS apps. This Privacy Policy explains how TicketLifeline handles information.
 
@@ -12,6 +12,7 @@ TicketLifeline requires an account so your saved codes can synchronize across de
 - Authentication records and session information needed to keep you signed in.
 - QR code and barcode content you choose to save, including the encoded value and generated visual matrix.
 - Optional information you add to a saved code, such as its title, issuer, event date, notes, launch URL, code type, format, and display color.
+- Timestamps associated with saved codes, such as when they are created, updated, or opened, to support vault synchronization and activity.
 - Standard network information processed when your device communicates with the service, such as IP address and request timing, as part of normal server operation and security.
 
 TicketLifeline does not intentionally collect advertising identifiers, precise location, contacts, microphone data, health data, payment information, or cross-app usage analytics.
@@ -23,6 +24,7 @@ The information described above is used only to provide and protect TicketLifeli
 - Creating and authenticating your account.
 - Synchronizing saved QR codes and barcodes across the web and iOS apps.
 - Displaying, searching, regenerating, and deleting your saved codes.
+- Synchronizing saved-code timestamps, including creation, update, and last-opened activity.
 - Maintaining session security and preventing unauthorized sign-in attempts.
 - Diagnosing service failures and protecting the service from abuse.
 
@@ -33,6 +35,8 @@ TicketLifeline does not use your saved codes or account information for advertis
 Account information and saved code data are stored using Convex, TicketLifeline’s cloud database and authentication service. Data is encrypted in transit using TLS, and Convex encrypts customer data at rest. Saved code fields are not end-to-end encrypted and may be accessed by authorized application functions and project administrators as necessary to operate the service.
 
 On iOS, authentication session credentials are stored locally using Apple’s Keychain. On the web, authentication session credentials are stored in browser storage. These credentials are used only to maintain your signed-in session.
+
+Signed-in sessions are designed to last for up to one year and may be refreshed while the account remains active, subject to a rolling three-month inactivity window. A session that is not used within that inactivity window expires and requires signing in again.
 
 TicketLifeline retains your account and saved code data while your account remains active. You can delete individual saved codes at any time. You can also permanently delete your account from Account Settings in either the web or iOS app. Account deletion removes your account, saved codes, authentication records, and active sessions from TicketLifeline’s database.
 
