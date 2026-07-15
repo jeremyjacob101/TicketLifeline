@@ -10,6 +10,7 @@ import {
   Plus,
   QrCode,
   Search,
+  ShieldCheck,
   Trash2,
   X,
 } from "lucide-react";
@@ -259,21 +260,31 @@ export function VaultApp() {
           </a>
         </nav>
         <div className="rail-footer">
-          <div>
-            <p>Emergency copy</p>
-            <span>Stored QR patterns open on any device.</span>
-          </div>
           <div className="rail-account-actions">
-            <a href={privacyPolicyUrl} target="_blank" rel="noreferrer">
+            <a
+              className="rail-action"
+              href={privacyPolicyUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ShieldCheck size={17} />
               Privacy
             </a>
-            <button type="button" className="delete-account-link" onClick={() => setIsDeleteOpen(true)}>
+            <button
+              type="button"
+              className="rail-action"
+              onClick={() => void signOut()}
+            >
+              <LogOut size={17} />
+              Sign out
+            </button>
+            <button
+              type="button"
+              className="rail-action rail-action-danger"
+              onClick={() => setIsDeleteOpen(true)}
+            >
               <Trash2 size={14} />
               Delete account
-            </button>
-            <button type="button" className="icon-button" onClick={() => void signOut()}>
-              <LogOut size={17} />
-              <span className="sr-only">Sign out</span>
             </button>
           </div>
         </div>

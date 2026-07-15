@@ -368,38 +368,43 @@ select:focus {
 }
 
 .rail-account-actions {
-  display: flex;
-  align-items: center;
-  gap: 9px;
+  display: grid;
+  gap: 8px;
 }
 
-.rail-account-actions > a,
-.delete-account-link {
-  border: 0;
-  background: transparent;
+.rail-action {
+  width: 100%;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
   color: var(--muted);
-  font-size: 11px;
+  text-decoration: none;
+  font-size: 13px;
   font-weight: 800;
 }
 
-.rail-account-actions > a {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.rail-action:hover {
+  border-color: #b8c8c8;
+  background: #f8fafb;
+  color: var(--text);
 }
 
-.delete-account-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0;
-}
-
-.delete-account-link:hover {
+.rail-action-danger {
+  border-color: #fecaca;
+  background: #fff8f7;
   color: var(--danger);
 }
 
-.rail-account-actions .icon-button {
-  margin-left: auto;
+.rail-action-danger:hover {
+  border-color: #fca5a5;
+  background: #fff1f0;
+  color: var(--danger);
 }
 
 .dialog-backdrop {
@@ -466,18 +471,6 @@ select:focus {
 .dialog-actions .text-button {
   width: auto;
   margin: 0;
-}
-
-.rail-footer p {
-  margin: 0 0 4px;
-  font-size: 13px;
-  font-weight: 850;
-}
-
-.rail-footer span {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.35;
 }
 
 .vault-column {
