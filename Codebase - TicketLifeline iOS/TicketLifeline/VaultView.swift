@@ -51,7 +51,7 @@ struct VaultView: View {
                     }
                 }
             }
-            .navigationTitle("My QR Codes")
+            .navigationTitle("My Passes")
             .navigationDestination(for: SavedCode.self) { code in
                 CodeDetailView(code: code, appState: appState)
             }
