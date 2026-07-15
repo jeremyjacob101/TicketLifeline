@@ -56,7 +56,7 @@ struct ConvexClient: Sendable {
             body: FunctionCall(path: "auth:signIn", args: Args(refreshToken: refreshToken)),
             token: nil
         )
-        guard let tokens = response.tokens else { throw AppError.message("Your session expired. Please sign in again.") }
+        guard let tokens = response.tokens else { throw AppError.unauthorized("Your session expired. Please sign in again.") }
         return tokens
     }
 
@@ -287,6 +287,13 @@ actor TrustedSessionManager {
 
     func storedSession() -> ConvexSession? {
         KeychainStore.load(ConvexSession.self, key: KeychainStore.sessionKey)
+    }
+
+    func refreshStoredSession(fallbackSession: ConvexSession? = nil) async throws -> ConvexSession {
+        guard let original = storedSession() ?? fallbackSession else {
+            throw AppError.unauthorized("Please sign in again.")
+        }
+        return try await refreshSession(fallback: original)
     }
 
     func perform<Value: Sendable>(

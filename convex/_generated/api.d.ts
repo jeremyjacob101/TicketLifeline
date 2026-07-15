@@ -11,6 +11,8 @@
 import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as passes from "../passes.js";
+import type * as sessionMaintenance from "../sessionMaintenance.js";
+import type * as sessionPolicy from "../sessionPolicy.js";
 import type * as users from "../users.js";
 
 import type {
@@ -23,6 +25,8 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   http: typeof http;
   passes: typeof passes;
+  sessionMaintenance: typeof sessionMaintenance;
+  sessionPolicy: typeof sessionPolicy;
   users: typeof users;
 }>;
 

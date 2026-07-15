@@ -117,7 +117,7 @@ final class AppState: ObservableObject {
         client = ConvexClient()
         session = KeychainStore.load(ConvexSession.self, key: KeychainStore.sessionKey)
         if session != nil {
-            Task { try? await refreshCodes() }
+            Task { try? await activateSession() }
         }
     }
 
@@ -141,6 +141,28 @@ final class AppState: ObservableObject {
         }
     }
 
+    func activateSession() async throws {
+        guard let currentSession = session else { return }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            session = try await TrustedSessionManager.shared.refreshStoredSession(
+                fallbackSession: currentSession
+            )
+        } catch where !error.isAuthorizationFailure {
+            // Keep a potentially usable cached access token during temporary
+            // network failures. The query below will retry if it has expired.
+        } catch {
+            session = nil
+            savedCodes = []
+            throw error
+        }
+
+        savedCodes = try await loadCodes()
+    }
+
     func deleteAccount() async throws {
         isLoading = true
         defer { isLoading = false }
@@ -158,9 +180,7 @@ final class AppState: ObservableObject {
     func refreshCodes() async throws {
         isLoading = true
         defer { isLoading = false }
-        savedCodes = try await withTrustedSession { session in
-            try await self.client.query("passes:list", token: session.token)
-        }
+        savedCodes = try await loadCodes()
     }
 
     func deleteCode(_ id: String) async throws {
@@ -202,6 +222,12 @@ final class AppState: ObservableObject {
         session = newSession
         KeychainStore.save(newSession, key: KeychainStore.sessionKey)
         try await refreshCodes()
+    }
+
+    private func loadCodes() async throws -> [SavedCode] {
+        try await withTrustedSession { session in
+            try await self.client.query("passes:list", token: session.token)
+        }
     }
 
     private func withTrustedSession<Value: Sendable>(

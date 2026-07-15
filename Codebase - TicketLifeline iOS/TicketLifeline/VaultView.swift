@@ -118,7 +118,7 @@ struct VaultView: View {
                 guard phase == .active else { return }
                 appState.reloadSharedSession()
                 guard appState.isSignedIn else { return }
-                Task { try? await appState.refreshCodes() }
+                Task { try? await appState.activateSession() }
             }
             .refreshable { try? await appState.refreshCodes() }
             .task {
