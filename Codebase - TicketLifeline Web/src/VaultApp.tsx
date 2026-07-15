@@ -7,6 +7,7 @@ import {
   Grid2X2,
   ImageUp,
   LogOut,
+  Menu,
   Plus,
   QrCode,
   Search,
@@ -15,7 +16,6 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import type { DragEvent } from "react";
 import { api } from "@ticketlifeline/convex-api";
 import type { Id } from "@ticketlifeline/convex-data-model";
 import type { CodeType, Pass } from "./types";
@@ -27,6 +27,7 @@ import {
 } from "./utils";
 import { decodeBarcodeFromImage } from "./barcode";
 import { PassDetail } from "./PassDetail";
+import { useDeviceType } from "./useDeviceType";
 
 type Draft = {
   title: string;
@@ -87,6 +88,8 @@ const emptyDraft: Draft = {
 
 export function VaultApp() {
   const { signOut } = useAuthActions();
+  const deviceType = useDeviceType();
+  const isMobile = deviceType === "mobile";
   const passes = useQuery(api.passes.list);
   const createPass = useMutation(api.passes.create);
   const updatePass = useMutation(api.passes.update);
@@ -98,8 +101,8 @@ export function VaultApp() {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [decodeState, setDecodeState] = useState<"idle" | "decoding" | "success" | "error">("idle");
   const [decodeMessage, setDecodeMessage] = useState("");
-  const [isDragActive, setIsDragActive] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -128,6 +131,24 @@ export function VaultApp() {
       void markOpened({ id: selectedPass._id });
     }
   }, [markOpened, selectedId, selectedPass?._id]);
+
+  useEffect(() => {
+    if (!isMobile) setIsMobileMenuOpen(false);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile || !isMobileMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobile, isMobileMenuOpen]);
+
+  function openAddPass() {
+    setIsMobileMenuOpen(false);
+    setIsAddOpen(true);
+  }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -212,11 +233,9 @@ export function VaultApp() {
     }
   }
 
-  async function handleDrop(event: DragEvent<HTMLLabelElement>) {
-    event.preventDefault();
-    setIsDragActive(false);
+  async function handleDrop(dataTransfer: DataTransfer) {
     try {
-      const file = await getDroppedImageFile(event.dataTransfer);
+      const file = await getDroppedImageFile(dataTransfer);
       await handleFile(file);
     } catch (err) {
       setDecodeState("error");
@@ -242,19 +261,39 @@ export function VaultApp() {
 
   return (
     <main className="app-shell">
-      <aside className="side-rail">
-        <div className="brand-row small">
-          <span className="brand-icon">
-            <QrCode size={20} />
-          </span>
-          <span>TicketLifeline</span>
+      <aside className={`side-rail ${isMobileMenuOpen ? "mobile-menu-open" : ""}`}>
+        <div className="rail-header">
+          <div className="brand-row small">
+            <span className="brand-icon">
+              <QrCode size={20} />
+            </span>
+            <span>TicketLifeline</span>
+          </div>
+          {isMobile ? (
+            <button
+              type="button"
+              className="mobile-menu-close"
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Close menu"
+            >
+              <X size={20} />
+            </button>
+          ) : null}
         </div>
         <nav className="rail-nav" aria-label="Primary">
-          <a className="active" href="#vault">
+          <a className="active" href="#vault" onClick={() => setIsMobileMenuOpen(false)}>
             <Grid2X2 size={17} />
             Vault
           </a>
-          <a href="#add-pass">
+          <a
+            href="#add-pass"
+            onClick={(event) => {
+              if (isMobile) {
+                event.preventDefault();
+                openAddPass();
+              }
+            }}
+          >
             <Plus size={17} />
             Add pass
           </a>
@@ -290,19 +329,76 @@ export function VaultApp() {
         </div>
       </aside>
 
+      {isMobile ? (
+        <button
+          type="button"
+          className={`mobile-menu-backdrop ${isMobileMenuOpen ? "is-visible" : ""}`}
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-label="Close menu"
+          aria-hidden={!isMobileMenuOpen}
+          tabIndex={isMobileMenuOpen ? 0 : -1}
+        />
+      ) : null}
+
       <section className="vault-column" id="vault">
-        <header className="top-bar">
-          <div>
-            <h1>Vault</h1>
-            <p>{passList.length} saved passes</p>
-          </div>
-          <div className="search-field">
+        {isMobile ? (
+          <header className="mobile-top-bar">
+            <div>
+              <h1>Vault</h1>
+              <p>{passList.length} saved passes</p>
+            </div>
+            <div className="mobile-top-actions">
+              <button
+                type="button"
+                className="mobile-icon-button"
+                onClick={openAddPass}
+                aria-label="Add pass"
+              >
+                <Plus size={21} />
+              </button>
+              <button
+                type="button"
+                className="mobile-icon-button"
+                onClick={() => setIsMobileMenuOpen((open) => !open)}
+                aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+              >
+                {isMobileMenuOpen ? <X size={21} /> : <Menu size={21} />}
+              </button>
+            </div>
+          </header>
+        ) : null}
+        {isMobile ? (
+          <div className="mobile-search-field search-field">
             <Search size={17} />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search passes"
             />
+          </div>
+        ) : null}
+        <header className="top-bar">
+          <div>
+            <h1>Vault</h1>
+            <p>{passList.length} saved passes</p>
+          </div>
+          <div className="desktop-top-actions">
+            <div className="search-field">
+              <Search size={17} />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search passes"
+              />
+            </div>
+            <button
+              type="button"
+              className="desktop-add-button"
+              onClick={openAddPass}
+              aria-label="Add pass"
+            >
+              <Plus size={21} />
+            </button>
           </div>
         </header>
 
@@ -334,14 +430,6 @@ export function VaultApp() {
                   </span>
                   <ArrowUpRight size={16} />
                 </button>
-                <button
-                  type="button"
-                  className="pass-row-delete"
-                  onClick={() => void removePass({ id: pass._id })}
-                  aria-label={`Delete ${pass.title}`}
-                >
-                  <Trash2 size={14} />
-                </button>
               </div>
             ))
           ) : (
@@ -358,38 +446,7 @@ export function VaultApp() {
             <p>Drop a ticket image to save it.</p>
           </div>
         </div>
-        <label
-          className={`upload-target add-drop-target ${isDragActive ? "drag-active" : ""}`}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setIsDragActive(true);
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            event.dataTransfer.dropEffect = "copy";
-            setIsDragActive(true);
-          }}
-          onDragLeave={(event) => {
-            event.preventDefault();
-            const nextTarget = event.relatedTarget;
-            if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
-              setIsDragActive(false);
-            }
-          }}
-          onDrop={(event) => void handleDrop(event)}
-        >
-          <input
-            type="file"
-            accept="image/*,.heic,.heif,image/heic,image/heif"
-            onChange={(event) => {
-              void handleFile(event.target.files?.[0] ?? null);
-              event.currentTarget.value = "";
-            }}
-          />
-          <ImageUp size={24} />
-          <span>{isDragActive ? "Drop image here" : "Drop or choose"}</span>
-          <small>PNG, JPG, HEIC, or HEIF</small>
-        </label>
+        <ImageUploadTarget className="add-drop-target" onFile={handleFile} onDrop={handleDrop} />
         <div className={`decode-status add-status ${decodeState}`} aria-live="polite">
           {decodeState === "success" ? <Check size={15} /> : decodeState === "error" ? <AlertCircle size={15} /> : null}
           <span>{decodeMessage || "Your ticket details will appear after the code is read."}</span>
@@ -402,6 +459,8 @@ export function VaultApp() {
           decodeState={decodeState}
           decodeMessage={decodeMessage}
           onDraftChange={setDraft}
+          onFile={handleFile}
+          onDrop={handleDrop}
           onSubmit={handleCreate}
           onCancel={() => setIsAddOpen(false)}
         />
@@ -466,11 +525,13 @@ type AddPassDialogProps = {
   decodeState: "idle" | "decoding" | "success" | "error";
   decodeMessage: string;
   onDraftChange: (draft: Draft) => void;
+  onFile: (file: File | null) => void | Promise<void>;
+  onDrop: (dataTransfer: DataTransfer) => void | Promise<void>;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
 };
 
-function AddPassDialog({ draft, decodeState, decodeMessage, onDraftChange, onSubmit, onCancel }: AddPassDialogProps) {
+function AddPassDialog({ draft, decodeState, decodeMessage, onDraftChange, onFile, onDrop, onSubmit, onCancel }: AddPassDialogProps) {
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={onCancel}>
       <section className="pass-dialog add-dialog" role="dialog" aria-modal="true" aria-labelledby="add-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
@@ -480,10 +541,11 @@ function AddPassDialog({ draft, decodeState, decodeMessage, onDraftChange, onSub
         <div className="modal-heading">
           <div className="add-rail-icon"><Plus size={18} /></div>
           <div>
-            <h2 id="add-dialog-title">Add pass details</h2>
-            <p>The code was read locally. Add a few details before saving.</p>
+            <h2 id="add-dialog-title">Add new</h2>
+            <p>Drop a ticket image to save it.</p>
           </div>
         </div>
+        <ImageUploadTarget className="add-drop-target modal-upload-target" onFile={onFile} onDrop={onDrop} />
         <form className="pass-form" onSubmit={onSubmit}>
           <div className="field-grid">
             <label>
@@ -530,6 +592,55 @@ function AddPassDialog({ draft, decodeState, decodeMessage, onDraftChange, onSub
         </form>
       </section>
     </div>
+  );
+}
+
+type ImageUploadTargetProps = {
+  className?: string;
+  onFile: (file: File | null) => void | Promise<void>;
+  onDrop: (dataTransfer: DataTransfer) => void | Promise<void>;
+};
+
+function ImageUploadTarget({ className = "", onFile, onDrop }: ImageUploadTargetProps) {
+  const [isDragActive, setIsDragActive] = useState(false);
+
+  return (
+    <label
+      className={`upload-target ${className} ${isDragActive ? "drag-active" : ""}`.trim()}
+      onDragEnter={(event) => {
+        event.preventDefault();
+        setIsDragActive(true);
+      }}
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        setIsDragActive(true);
+      }}
+      onDragLeave={(event) => {
+        event.preventDefault();
+        const nextTarget = event.relatedTarget;
+        if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+          setIsDragActive(false);
+        }
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        setIsDragActive(false);
+        void onDrop(event.dataTransfer);
+      }}
+    >
+      <input
+        type="file"
+        accept="image/*,.heic,.heif,image/heic,image/heif"
+        onChange={(event) => {
+          void onFile(event.target.files?.[0] ?? null);
+          event.currentTarget.value = "";
+        }}
+      />
+      <ImageUp size={24} />
+      <span>{isDragActive ? "Drop image here" : "Drop or choose"}</span>
+      <small>PNG, JPG, HEIC, or HEIF</small>
+    </label>
   );
 }
 
