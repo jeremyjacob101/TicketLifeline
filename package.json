@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm run web:dev",
+    "dev": "npm run web:dev --",
     "build": "npm run web:build",
     "web:dev": "vite --config \"Codebase - TicketLifeline Web/vite.config.ts\"",
     "web:build": "tsc --noEmit -p \"Codebase - TicketLifeline Web/tsconfig.json\" && vite build --config \"Codebase - TicketLifeline Web/vite.config.ts\"",

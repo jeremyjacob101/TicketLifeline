@@ -1,7 +1,7 @@
 import { internalMutation } from "./_generated/server";
 import { inactiveSessionMs, totalSessionMs } from "./sessionPolicy";
 
-export const migrateToLongLivedSessions = internalMutation({
+export const applyCurrentSessionPolicy = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
@@ -14,7 +14,7 @@ export const migrateToLongLivedSessions = internalMutation({
       if (session.expirationTime < now) continue;
 
       const sessionExpirationTime = session._creationTime + totalSessionMs;
-      if (session.expirationTime < sessionExpirationTime) {
+      if (session.expirationTime !== sessionExpirationTime) {
         await ctx.db.patch(session._id, {
           expirationTime: sessionExpirationTime,
         });
@@ -36,7 +36,7 @@ export const migrateToLongLivedSessions = internalMutation({
 
         const refreshExpirationTime =
           refreshToken._creationTime + inactiveSessionMs;
-        if (refreshToken.expirationTime < refreshExpirationTime) {
+        if (refreshToken.expirationTime !== refreshExpirationTime) {
           await ctx.db.patch(refreshToken._id, {
             expirationTime: refreshExpirationTime,
           });

@@ -59,9 +59,11 @@ private struct AuthView: View {
         NavigationStack {
             VStack(spacing: 24) {
                 Spacer()
-                Image(systemName: "qrcode")
-                    .font(.system(size: 54, weight: .medium))
-                    .foregroundStyle(.indigo)
+                Image("AuthLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 64, height: 64)
+                    .accessibilityHidden(true)
                 VStack(spacing: 8) {
                     Text("TicketLifeline")
                         .font(.largeTitle.bold())

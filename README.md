@@ -49,7 +49,7 @@ TicketLifeline is designed to make that recovery path simple:
 ## Highlights
 
 - Shared username-and-password authentication across web and iOS.
-- Effectively uncapped sessions with a rolling six-month inactivity window and automatic token refresh.
+- One-year sessions with a rolling three-month inactivity window and automatic token refresh.
 - Per-user Convex data isolation for every pass query and mutation.
 - Local image decoding; original photos and camera frames are never uploaded.
 - Native iOS photo import through the limited system picker, with no full Photo Library permission.
