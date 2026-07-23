@@ -203,7 +203,7 @@ private struct AccountSettingsView: View {
         NavigationStack {
             Form {
                 Section("Account") {
-                    LabeledContent("Username", value: appState.session?.username ?? "Signed in")
+                    LabeledContent("Email", value: appState.session?.email ?? "Signed in")
                     Link(destination: AppLinks.privacyPolicy) {
                         Label("Privacy Policy", systemImage: "hand.raised")
                     }
@@ -306,6 +306,7 @@ struct CodeDetailView: View {
     @State private var isConfirmingDelete = false
     @State private var isEditing = false
     @State private var isDeleting = false
+    @State private var isRescanning = false
 
     var body: some View {
         ScrollView {
@@ -333,9 +334,18 @@ struct CodeDetailView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 PassInfoCard(code: code)
+                if let rawURL = code.effectiveLaunchURL, let url = URL(string: rawURL) {
+                    Link(destination: url) {
+                        Label("Open website", systemImage: "safari")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
                 VStack(alignment: .leading, spacing: 8) {
                     Text("SCANNED VALUE").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    Text(code.payload).textSelection(.enabled).font(.body.monospaced())
+                    Text(code.payloadEncoding == "base64" ? "Binary payload (Base64): \(code.payload)" : code.payload)
+                        .textSelection(.enabled)
+                        .font(.body.monospaced())
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
@@ -351,6 +361,9 @@ struct CodeDetailView: View {
                 Menu {
                     Button { isEditing = true } label: {
                         Label("Edit", systemImage: "pencil")
+                    }
+                    Button { isRescanning = true } label: {
+                        Label("Rescan exact code", systemImage: "viewfinder")
                     }
                     Divider()
                     Button(role: .destructive) { isConfirmingDelete = true } label: {
@@ -369,6 +382,9 @@ struct CodeDetailView: View {
         }
         .sheet(isPresented: $isEditing) {
             EditCodeView(code: code, appState: appState)
+        }
+        .sheet(isPresented: $isRescanning) {
+            RescanSavedCodeView(code: code, appState: appState)
         }
     }
 
@@ -390,13 +406,40 @@ private struct CodePreview: View {
 
     var body: some View {
         Group {
-            if code.isBarcode {
-                BarcodeCityView(code: code, isFlat: isFlat)
-            } else {
+            if !hasValidStoredMatrix {
+                CodeSymbolView(code: code)
+                    .padding(24)
+                    .background(.white)
+            } else if isSquareMatrix {
                 QRTreeMetalView(code: code, isFlat: isFlat)
+            } else if isLinearMatrix {
+                BarcodeCityView(code: code, isFlat: isFlat)
+            } else if isFlat {
+                CodeSymbolView(code: code)
+                    .padding(24)
+                    .background(.white)
+            } else {
+                BarcodeCityView(code: code, isFlat: false)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 22))
+    }
+
+    private var hasValidStoredMatrix: Bool {
+        guard let matrix = code.visualMatrix,
+              let width = code.visualWidth ?? code.visualSize,
+              let height = code.visualHeight ?? code.visualSize else { return false }
+        return BinaryCodeMatrix(bits: matrix, width: width, height: height).isValid
+    }
+
+    private var isSquareMatrix: Bool {
+        let width = code.visualWidth ?? code.visualSize ?? 0
+        let height = code.visualHeight ?? code.visualSize ?? 0
+        return width > 0 && width == height
+    }
+
+    private var isLinearMatrix: Bool {
+        (code.visualHeight ?? code.visualSize) == 1
     }
 }
 
@@ -419,7 +462,7 @@ private struct EditCodeView: View {
         _issuer = State(initialValue: code.issuer ?? "")
         _notes = State(initialValue: code.notes ?? "")
         _eventDate = State(initialValue: code.preferredDateInput)
-        _launchURL = State(initialValue: code.launchURL ?? "")
+        _launchURL = State(initialValue: code.effectiveLaunchURL ?? "")
     }
 
     var body: some View {
@@ -478,16 +521,95 @@ private struct EditCodeView: View {
                 codeType: code.codeType,
                 format: code.format,
                 encodedValue: code.payload,
+                payloadEncoding: code.payloadEncoding == "utf8" ? nil : code.payloadEncoding,
                 launchUrl: launchURL.trimmingCharacters(in: .whitespaces).isEmpty ? nil : launchURL.trimmingCharacters(in: .whitespaces),
                 visualMatrix: code.visualMatrix,
                 visualSize: code.visualSize,
+                visualWidth: code.visualWidth,
+                visualHeight: code.visualHeight,
                 eventDate: cleanEventDate.isEmpty || cleanEventDate == code.createdDateInput ? nil : cleanEventDate,
                 notes: notes.trimmingCharacters(in: .whitespaces).isEmpty ? nil : notes.trimmingCharacters(in: .whitespaces),
                 color: code.color
             )
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = CodeOperationError.userFacingMessage(for: error)
+            isSaving = false
+        }
+    }
+}
+
+private struct RescanSavedCodeView: View {
+    let code: SavedCode
+    @ObservedObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var errorMessage: String?
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 18) {
+                QRScannerView(
+                    onCodeScanned: { detected in Task { await accept(detected) } },
+                    onError: { errorMessage = $0 }
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 22))
+                .frame(height: 400)
+                Text("Scan the original \(code.format?.replacingOccurrences(of: "_", with: " ") ?? "code")")
+                    .font(.headline)
+                Text("The replacement must contain the same format and payload. Your title, notes, date, issuer, and color will be preserved.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                if isSaving { ProgressView("Saving verified pattern…") }
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(24)
+            .navigationTitle("Rescan Code")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+        }
+        .interactiveDismissDisabled(isSaving)
+    }
+
+    @MainActor
+    private func accept(_ detected: DetectedCode) async {
+        guard !isSaving else { return }
+        let expectedFormat = code.format ?? (code.isBarcode ? "CODE_128" : "QR_CODE")
+        guard detected.format == expectedFormat,
+              detected.payload == code.payload,
+              detected.payloadEncoding == code.payloadEncoding else {
+            errorMessage = "That is a different code. Scan the original \(expectedFormat.replacingOccurrences(of: "_", with: " ")) with the same value."
+            return
+        }
+        isSaving = true
+        errorMessage = nil
+        do {
+            try await appState.updateCode(
+                code.id,
+                title: code.label,
+                issuer: code.issuer,
+                codeType: detected.codeType,
+                format: detected.format,
+                encodedValue: detected.payload,
+                payloadEncoding: detected.payloadEncoding == "utf8" ? nil : detected.payloadEncoding,
+                launchUrl: detected.inferredLaunchURL ?? code.effectiveLaunchURL,
+                visualMatrix: detected.visualMatrix,
+                visualSize: detected.visualSize,
+                visualWidth: detected.visualWidth,
+                visualHeight: detected.visualHeight,
+                eventDate: code.eventDate,
+                notes: code.notes,
+                color: code.color
+            )
+            dismiss()
+        } catch {
+            errorMessage = CodeOperationError.userFacingMessage(for: error)
             isSaving = false
         }
     }
@@ -497,11 +619,7 @@ private struct CodeImage: View {
     let code: SavedCode
 
     var body: some View {
-        if code.isBarcode {
-            BarcodeImage(payload: code.payload)
-        } else {
-            QRCodeImage(payload: code.payload)
-        }
+        CodeSymbolView(code: code)
     }
 }
 
@@ -516,7 +634,7 @@ private struct PassInfoCard: View {
             InfoRow(label: "Pass date", value: code.hasDateOverride ? Self.overrideFormatter.string(from: code.preferredDate) : Self.rowFormatter.string(from: code.createdAt))
             InfoRow(label: "Created", value: Self.rowFormatter.string(from: code.createdAt))
             InfoRow(label: "Notes", value: code.notes ?? "No notes")
-            if let launchURL = code.launchURL {
+            if let launchURL = code.effectiveLaunchURL {
                 InfoRow(label: "Scan link", value: launchURL)
             }
         }

@@ -1,12 +1,106 @@
 import Combine
 import Foundation
 
+enum AccountAuthenticationOutcome: Equatable {
+    case signedIn
+    case confirmationRequired(email: String)
+}
+
+enum AccountAuthValidation {
+    static func normalizedEmail(_ value: String) throws -> String {
+        let email = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let pattern = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+        guard (3...254).contains(email.count),
+              email.range(of: pattern, options: .regularExpression) != nil else {
+            throw AppError.message("Enter a valid email address.")
+        }
+        return email
+    }
+
+    static func validatePassword(_ password: String) throws {
+        guard password.count >= 8 else {
+            throw AppError.message("Use a password with at least 8 characters.")
+        }
+        guard password.count <= 128 else {
+            throw AppError.message("Use a password with no more than 128 characters.")
+        }
+    }
+
+    static func confirmationCode(_ value: String) throws -> String {
+        let code = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard code.count == 6, code.allSatisfy(\.isNumber) else {
+            throw AppError.message("Enter the 6-digit confirmation code.")
+        }
+        return code
+    }
+
+    static func userFacingMessage(for error: Error) -> String {
+        let message = error.localizedDescription
+        let normalized = message.lowercased()
+        if normalized.contains("invalid credentials") {
+            return "Email or password is incorrect."
+        }
+        if normalized.contains("could not verify code") || normalized.contains("invalid code") {
+            return "That confirmation code is incorrect or expired. Request a new code and try again."
+        }
+        if normalized.contains("already exists") {
+            return "An account already exists for this email. Sign in instead."
+        }
+        if normalized.contains("too many") || normalized.contains("rate limit") {
+            return "Too many attempts. Wait a few minutes and try again."
+        }
+        if normalized.contains("email delivery is not configured") ||
+            normalized.contains("verification email could not be delivered") {
+            return "We could not send the confirmation email. Please try again shortly."
+        }
+        if normalized.contains("network") || normalized.contains("offline") || normalized.contains("connection") {
+            return "Could not connect to TicketLifeline. Check your connection and try again."
+        }
+        if normalized.contains("valid email") || normalized.contains("at least 8") ||
+            normalized.contains("no more than 128") || normalized.contains("6-digit") {
+            return message
+        }
+        return "We could not complete that request. Please try again."
+    }
+}
+
+enum CodeOperationError {
+    static func userFacingMessage(for error: Error) -> String {
+        if let importError = error as? CodeImportError {
+            return importError.localizedDescription
+        }
+        if let appError = error as? AppError {
+            switch appError {
+            case .network:
+                return "Could not connect to TicketLifeline. Check your connection and try again."
+            case .unauthorized:
+                return "Your session expired. Please sign in again."
+            case .message:
+                break
+            }
+        }
+
+        let message = error.localizedDescription
+        let normalized = message.lowercased()
+        if normalized.contains("matrix") {
+            return "This code could not be saved safely. Scan it again or move closer and retry."
+        }
+        if normalized.contains("[request id") ||
+            normalized.contains("server error") ||
+            normalized.contains("uncaught error") {
+            return "TicketLifeline could not save this code. Please try again."
+        }
+        return message
+    }
+}
+
 struct SavedCode: Identifiable, Hashable, Decodable {
     let id: String
     let label: String
     let payload: String
     let codeType: String
     let format: String?
+    let payloadEncoding: String
     let issuer: String?
     let launchURL: String?
     let eventDate: String?
@@ -14,9 +108,15 @@ struct SavedCode: Identifiable, Hashable, Decodable {
     let color: String?
     let visualMatrix: String?
     let visualSize: Int?
+    let visualWidth: Int?
+    let visualHeight: Int?
     let createdAt: Date
 
     var isBarcode: Bool { codeType == "barcode" }
+    var effectiveLaunchURL: String? {
+        if let launchURL, let normalized = LaunchURLExtractor.extract(from: launchURL) { return normalized }
+        return LaunchURLExtractor.extract(from: payload, encoding: payloadEncoding)
+    }
     var hasDateOverride: Bool {
         guard let eventDate else { return false }
         return !eventDate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -58,6 +158,7 @@ struct SavedCode: Identifiable, Hashable, Decodable {
         case payload = "encodedValue"
         case codeType
         case format
+        case payloadEncoding
         case issuer
         case launchURL = "launchUrl"
         case eventDate
@@ -65,15 +166,18 @@ struct SavedCode: Identifiable, Hashable, Decodable {
         case color
         case visualMatrix
         case visualSize
+        case visualWidth
+        case visualHeight
         case createdAt
     }
 
-    init(id: String, label: String, payload: String, codeType: String, format: String?, issuer: String?, launchURL: String?, eventDate: String?, notes: String?, color: String?, visualMatrix: String?, visualSize: Int?, createdAt: Date) {
+    init(id: String, label: String, payload: String, codeType: String, format: String?, payloadEncoding: String = "utf8", issuer: String?, launchURL: String?, eventDate: String?, notes: String?, color: String?, visualMatrix: String?, visualSize: Int?, visualWidth: Int? = nil, visualHeight: Int? = nil, createdAt: Date) {
         self.id = id
         self.label = label
         self.payload = payload
         self.codeType = codeType
         self.format = format
+        self.payloadEncoding = payloadEncoding
         self.issuer = issuer
         self.launchURL = launchURL
         self.eventDate = eventDate
@@ -81,6 +185,8 @@ struct SavedCode: Identifiable, Hashable, Decodable {
         self.color = color
         self.visualMatrix = visualMatrix
         self.visualSize = visualSize
+        self.visualWidth = visualWidth
+        self.visualHeight = visualHeight
         self.createdAt = createdAt
     }
 
@@ -91,6 +197,7 @@ struct SavedCode: Identifiable, Hashable, Decodable {
         payload = try container.decode(String.self, forKey: .payload)
         codeType = try container.decode(String.self, forKey: .codeType)
         format = try container.decodeIfPresent(String.self, forKey: .format)
+        payloadEncoding = try container.decodeIfPresent(String.self, forKey: .payloadEncoding) ?? "utf8"
         issuer = try container.decodeIfPresent(String.self, forKey: .issuer)
         launchURL = try container.decodeIfPresent(String.self, forKey: .launchURL)
         eventDate = try container.decodeIfPresent(String.self, forKey: .eventDate)
@@ -98,6 +205,8 @@ struct SavedCode: Identifiable, Hashable, Decodable {
         color = try container.decodeIfPresent(String.self, forKey: .color)
         visualMatrix = try container.decodeIfPresent(String.self, forKey: .visualMatrix)
         visualSize = try container.decodeIfPresent(Int.self, forKey: .visualSize)
+        visualWidth = try container.decodeIfPresent(Int.self, forKey: .visualWidth)
+        visualHeight = try container.decodeIfPresent(Int.self, forKey: .visualHeight)
         let milliseconds = try container.decode(Double.self, forKey: .createdAt)
         createdAt = Date(timeIntervalSince1970: milliseconds / 1_000)
     }
@@ -121,12 +230,46 @@ final class AppState: ObservableObject {
         }
     }
 
-    func createAccount(username: String, password: String) async throws {
-        try await authenticate(username: username, password: password, flow: "signUp")
+    func createAccount(email: String, password: String) async throws -> AccountAuthenticationOutcome {
+        try await authenticate(email: email, password: password, flow: "signUp")
     }
 
-    func signIn(username: String, password: String) async throws {
-        try await authenticate(username: username, password: password, flow: "signIn")
+    func signIn(email: String, password: String) async throws -> AccountAuthenticationOutcome {
+        try await authenticate(email: email, password: password, flow: "signIn")
+    }
+
+    func verifyEmail(_ email: String, code: String) async throws {
+        let cleanEmail = try AccountAuthValidation.normalizedEmail(email)
+        let cleanCode = try AccountAuthValidation.confirmationCode(code)
+        isLoading = true
+        defer { isLoading = false }
+        let result = try await client.passwordAuthentication(
+            email: cleanEmail,
+            code: cleanCode,
+            flow: "email-verification"
+        )
+        guard case .signedIn(let tokens) = result else {
+            throw AppError.message("Could not verify code")
+        }
+        try await storeSession(email: cleanEmail, tokens: tokens)
+    }
+
+    func resendEmailConfirmation(to email: String, password: String) async throws {
+        let cleanEmail = try AccountAuthValidation.normalizedEmail(email)
+        try AccountAuthValidation.validatePassword(password)
+        isLoading = true
+        defer { isLoading = false }
+        let result = try await client.passwordAuthentication(
+            email: cleanEmail,
+            password: password,
+            flow: "signIn"
+        )
+        switch result {
+        case .verificationRequired:
+            return
+        case .signedIn(let tokens):
+            try await storeSession(email: cleanEmail, tokens: tokens)
+        }
     }
 
     func signOut() {
@@ -190,12 +333,12 @@ final class AppState: ObservableObject {
         try await refreshCodes()
     }
 
-    func updateCode(_ id: String, title: String, issuer: String?, codeType: String, format: String?, encodedValue: String, launchUrl: String?, visualMatrix: String?, visualSize: Int?, eventDate: String?, notes: String?, color: String?) async throws {
+    func updateCode(_ id: String, title: String, issuer: String?, codeType: String, format: String?, encodedValue: String, payloadEncoding: String?, launchUrl: String?, visualMatrix: String?, visualSize: Int?, visualWidth: Int?, visualHeight: Int?, eventDate: String?, notes: String?, color: String?) async throws {
         try await withTrustedSession { session in
             try await self.client.updatePass(
                 id, title: title, issuer: issuer, codeType: codeType,
-                format: format, encodedValue: encodedValue, launchUrl: launchUrl,
-                visualMatrix: visualMatrix, visualSize: visualSize,
+                format: format, encodedValue: encodedValue, payloadEncoding: payloadEncoding, launchUrl: launchUrl,
+                visualMatrix: visualMatrix, visualSize: visualSize, visualWidth: visualWidth, visualHeight: visualHeight,
                 eventDate: eventDate, notes: notes, color: color,
                 token: session.token
             )
@@ -210,18 +353,30 @@ final class AppState: ObservableObject {
         try await refreshCodes()
     }
 
-    private func authenticate(username: String, password: String, flow: String) async throws {
-        let cleanUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard cleanUsername.count >= 3 else { throw AppError.message("Choose a username with at least 3 characters.") }
-        guard password.count >= 4 else { throw AppError.message("Choose a password with at least 4 characters.") }
-
+    private func authenticate(email: String, password: String, flow: String) async throws -> AccountAuthenticationOutcome {
+        let cleanEmail = try AccountAuthValidation.normalizedEmail(email)
+        try AccountAuthValidation.validatePassword(password)
         isLoading = true
         defer { isLoading = false }
-        let tokens = try await client.signIn(username: cleanUsername, password: password, flow: flow)
-        let newSession = ConvexSession(username: cleanUsername, token: tokens.token, refreshToken: tokens.refreshToken)
+        let result = try await client.passwordAuthentication(
+            email: cleanEmail,
+            password: password,
+            flow: flow
+        )
+        switch result {
+        case .signedIn(let tokens):
+            try await storeSession(email: cleanEmail, tokens: tokens)
+            return .signedIn
+        case .verificationRequired:
+            return .confirmationRequired(email: cleanEmail)
+        }
+    }
+
+    private func storeSession(email: String, tokens: ConvexTokens) async throws {
+        let newSession = ConvexSession(email: email, token: tokens.token, refreshToken: tokens.refreshToken)
         session = newSession
         KeychainStore.save(newSession, key: KeychainStore.sessionKey)
-        try await refreshCodes()
+        savedCodes = try await loadCodes()
     }
 
     private func loadCodes() async throws -> [SavedCode] {

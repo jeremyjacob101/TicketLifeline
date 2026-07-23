@@ -1,10 +1,39 @@
+import { Email } from "@convex-dev/auth/providers/Email";
 import { Password } from "@convex-dev/auth/providers/Password";
 import { convexAuth } from "@convex-dev/auth/server";
+import {
+  defaultVerificationSender,
+  generateVerificationCode,
+  normalizeAndValidateEmail,
+  requireCodeForVerificationFlow,
+  sendVerificationEmail,
+  validatePasswordRequirements,
+  verificationCodeMaxAgeSeconds,
+} from "./emailVerification";
 import { inactiveSessionMs, totalSessionMs } from "./sessionPolicy";
 
-function normalizeUsername(value: string) {
-  return value.trim().toLowerCase();
-}
+const verificationSender =
+  process.env.AUTH_EMAIL_FROM ?? defaultVerificationSender;
+const brevoApiKey =
+  process.env.BREVO_API_KEY ??
+  process.env.TICKETLIFELINE_CONVEX_BREVO_API_KEY ??
+  process.env.TICKETLIFELINE_BREVO_API_KEY ??
+  "";
+
+const emailVerification = Email({
+  id: "email-verification",
+  from: verificationSender,
+  maxAge: verificationCodeMaxAgeSeconds,
+  generateVerificationToken: generateVerificationCode,
+  async sendVerificationRequest({ identifier, token }) {
+    await sendVerificationEmail({
+      to: identifier,
+      token,
+      apiKey: brevoApiKey,
+      from: verificationSender,
+    });
+  },
+});
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   session: {
@@ -14,19 +43,12 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     Password({
       profile(params) {
-        const username =
-          typeof params.username === "string"
-            ? normalizeUsername(params.username)
-            : typeof params.email === "string"
-              ? normalizeUsername(params.email)
-              : "";
-
-        if (!username) {
-          throw new Error("Missing username");
-        }
-
-        return { email: username, username, name: username };
+        requireCodeForVerificationFlow(params.flow, params.code);
+        const email = normalizeAndValidateEmail(params.email);
+        return { email };
       },
+      validatePasswordRequirements,
+      verify: emailVerification,
     }),
   ],
 });

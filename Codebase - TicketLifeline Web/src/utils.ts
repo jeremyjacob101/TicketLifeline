@@ -3,14 +3,17 @@ export const bareWebUrlPattern =
   /^(?:www\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?::\d{2,5})?(?:[/?#][^\s<>"'`]*)?$/i;
 
 function cleanUrlCandidate(value: string) {
-  return value.trim().replace(/[),.;:!?}\]]+$/u, "");
+  return value
+    .trim()
+    .replace(/^[([{<]+/u, "")
+    .replace(/[),.;:!?}\]>]+$/u, "");
 }
 
 export function normalizeLaunchUrl(value: string) {
   const trimmed = cleanUrlCandidate(value);
   if (!trimmed) return "";
 
-  const candidate = /^https?:\/\//i.test(trimmed)
+  const candidate = /^https?:\/\//i.test(trimmed) && !/\s/u.test(trimmed)
     ? trimmed
     : bareWebUrlPattern.test(trimmed)
       ? `https://${trimmed}`

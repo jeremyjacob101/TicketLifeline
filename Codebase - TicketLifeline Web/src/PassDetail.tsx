@@ -1,11 +1,12 @@
 import { Check, Copy, Link2, Pencil, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import type { Pass } from "./types";
-import { normalizeLaunchUrl } from "./utils";
+import { inferLaunchUrlFromPayload, normalizeLaunchUrl } from "./utils";
 import { CodeRender } from "./CodeRender";
 
 function getPassScanUrl(pass: Pass) {
-  return normalizeLaunchUrl(pass.launchUrl ?? "") || normalizeLaunchUrl(pass.encodedValue);
+  if (pass.payloadEncoding === "base64") return "";
+  return normalizeLaunchUrl(pass.launchUrl ?? "") || inferLaunchUrlFromPayload(pass.encodedValue);
 }
 
 type EditFields = {
@@ -49,10 +50,12 @@ export function PassDetail({
 }: {
   pass: Pass;
   onDelete: () => void;
-  onUpdate: (fields: EditFields) => void;
+  onUpdate: (fields: EditFields) => void | Promise<void>;
 }) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [updateError, setUpdateError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [edit, setEdit] = useState<EditFields>({
     title: pass.title,
     issuer: pass.issuer ?? "",
@@ -60,7 +63,7 @@ export function PassDetail({
     eventDate: displayDateValue(pass),
     launchUrl: pass.launchUrl ?? "",
   });
-  const scanUrl = pass.codeType === "qr" ? getPassScanUrl(pass) : "";
+  const scanUrl = getPassScanUrl(pass);
 
   function startEditing() {
     setEdit({
@@ -70,6 +73,7 @@ export function PassDetail({
       eventDate: displayDateValue(pass),
       launchUrl: pass.launchUrl ?? "",
     });
+    setUpdateError("");
     setIsEditing(true);
   }
 
@@ -77,12 +81,26 @@ export function PassDetail({
     setIsEditing(false);
   }
 
-  function handleSave() {
-    onUpdate({
-      ...edit,
-      eventDate: edit.eventDate === dateInputValue(pass.createdAt) ? "" : edit.eventDate,
-    });
-    setIsEditing(false);
+  async function handleSave() {
+    const launchUrl = normalizeLaunchUrl(edit.launchUrl);
+    if (edit.launchUrl.trim() && !launchUrl) {
+      setUpdateError("Use a valid HTTP(S) website address.");
+      return;
+    }
+    setIsSaving(true);
+    setUpdateError("");
+    try {
+      await onUpdate({
+        ...edit,
+        launchUrl,
+        eventDate: edit.eventDate === dateInputValue(pass.createdAt) ? "" : edit.eventDate,
+      });
+      setIsEditing(false);
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : "Could not save these changes.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function copyValue() {
@@ -120,21 +138,20 @@ export function PassDetail({
             Notes
             <input value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
           </label>
-          {pass.codeType === "qr" ? (
-            <label>
-              Opens when scanned
-              <input value={edit.launchUrl} onChange={(e) => setEdit({ ...edit, launchUrl: e.target.value })} placeholder="https://example.com/ticket" />
-            </label>
-          ) : null}
+          <label>
+            Website link
+            <input value={edit.launchUrl} onChange={(e) => setEdit({ ...edit, launchUrl: e.target.value })} placeholder="https://example.com/ticket" />
+          </label>
+          {updateError ? <p className="form-error">{updateError}</p> : null}
         </div>
         <div className="detail-actions">
           <button type="button" className="secondary-button" onClick={cancelEditing}>
             <X size={16} />
             Cancel
           </button>
-          <button type="button" className="primary-button" onClick={handleSave}>
+          <button type="button" className="primary-button" onClick={() => void handleSave()} disabled={isSaving}>
             <Check size={16} />
-            Save
+            {isSaving ? "Saving…" : "Save"}
           </button>
         </div>
       </div>
@@ -181,7 +198,7 @@ export function PassDetail({
         ) : null}
       </dl>
       <div className="payload-box">
-        <span>{pass.encodedValue}</span>
+        <span>{pass.payloadEncoding === "base64" ? `Binary payload (Base64): ${pass.encodedValue}` : pass.encodedValue}</span>
       </div>
       <div className="detail-actions">
         <div className="detail-actions-left">

@@ -2,9 +2,37 @@ import Foundation
 import Security
 
 struct ConvexSession: Codable, Sendable {
-    let username: String
+    let email: String
     let token: String
     let refreshToken: String
+
+    init(email: String, token: String, refreshToken: String) {
+        self.email = email
+        self.token = token
+        self.refreshToken = refreshToken
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case email
+        case username
+        case token
+        case refreshToken
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        email = try container.decodeIfPresent(String.self, forKey: .email)
+            ?? container.decode(String.self, forKey: .username)
+        token = try container.decode(String.self, forKey: .token)
+        refreshToken = try container.decode(String.self, forKey: .refreshToken)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(email, forKey: .email)
+        try container.encode(token, forKey: .token)
+        try container.encode(refreshToken, forKey: .refreshToken)
+    }
 }
 
 struct ConvexTokens: Decodable, Sendable {
@@ -14,6 +42,12 @@ struct ConvexTokens: Decodable, Sendable {
 
 private struct SignInResponse: Decodable {
     let tokens: ConvexTokens?
+    let started: Bool?
+}
+
+enum ConvexAuthenticationResult: Sendable {
+    case signedIn(ConvexTokens)
+    case verificationRequired
 }
 
 private struct ConvexResponse<Value: Decodable>: Decodable {
@@ -34,19 +68,39 @@ struct ConvexClient: Sendable {
         baseURL = url
     }
 
-    func signIn(username: String, password: String, flow: String) async throws -> ConvexTokens {
+    func passwordAuthentication(
+        email: String,
+        password: String? = nil,
+        code: String? = nil,
+        flow: String
+    ) async throws -> ConvexAuthenticationResult {
         struct Args: Encodable {
             let provider = "password"
             let params: Params
-            struct Params: Encodable { let username: String; let password: String; let flow: String }
+            struct Params: Encodable {
+                let email: String
+                let password: String?
+                let code: String?
+                let flow: String
+            }
         }
         let response: SignInResponse = try await request(
             endpoint: "api/action",
-            body: FunctionCall(path: "auth:signIn", args: Args(params: .init(username: username, password: password, flow: flow))),
+            body: FunctionCall(
+                path: "auth:signIn",
+                args: Args(params: .init(email: email, password: password, code: code, flow: flow))
+            ),
             token: nil
         )
-        guard let tokens = response.tokens else { throw AppError.message("Could not create a session.") }
-        return tokens
+        if let tokens = response.tokens { return .signedIn(tokens) }
+        if response.started == true { return .verificationRequired }
+        if flow == "email-verification" {
+            throw AppError.message("Could not verify code")
+        }
+        if flow == "signIn" {
+            throw AppError.message("Invalid credentials")
+        }
+        throw AppError.message("Could not create a session.")
     }
 
     func refresh(refreshToken: String) async throws -> ConvexTokens {
@@ -77,13 +131,13 @@ struct ConvexClient: Sendable {
         )
     }
 
-    func updatePass(_ id: String, title: String, issuer: String?, codeType: String, format: String?, encodedValue: String, launchUrl: String?, visualMatrix: String?, visualSize: Int?, eventDate: String?, notes: String?, color: String?, token: String) async throws {
+    func updatePass(_ id: String, title: String, issuer: String?, codeType: String, format: String?, encodedValue: String, payloadEncoding: String?, launchUrl: String?, visualMatrix: String?, visualSize: Int?, visualWidth: Int?, visualHeight: Int?, eventDate: String?, notes: String?, color: String?, token: String) async throws {
         let _: Bool = try await mutation(
             "passes:update",
             args: UpdatePassArgs(
                 id: id, title: title, issuer: issuer, codeType: codeType,
-                format: format, encodedValue: encodedValue, launchUrl: launchUrl,
-                visualMatrix: visualMatrix, visualSize: visualSize,
+                format: format, encodedValue: encodedValue, payloadEncoding: payloadEncoding, launchUrl: launchUrl,
+                visualMatrix: visualMatrix, visualSize: visualSize, visualWidth: visualWidth, visualHeight: visualHeight,
                 eventDate: eventDate, notes: notes, color: color
             ),
             token: token,
@@ -150,9 +204,12 @@ private struct UpdatePassArgs: Encodable {
     let codeType: String
     let format: String?
     let encodedValue: String
+    let payloadEncoding: String?
     let launchUrl: String?
     let visualMatrix: String?
     let visualSize: Int?
+    let visualWidth: Int?
+    let visualHeight: Int?
     let eventDate: String?
     let notes: String?
     let color: String?
@@ -335,7 +392,7 @@ actor TrustedSessionManager {
             do {
                 let tokens = try await ConvexClient().refresh(refreshToken: source.refreshToken)
                 let refreshed = ConvexSession(
-                    username: source.username,
+                    email: source.email,
                     token: tokens.token,
                     refreshToken: tokens.refreshToken
                 )

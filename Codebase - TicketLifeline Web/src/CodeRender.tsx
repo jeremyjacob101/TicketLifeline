@@ -1,96 +1,54 @@
-import JsBarcode from "jsbarcode";
-import { Barcode, QrCode } from "lucide-react";
-import QRCode from "qrcode";
+import { AlertTriangle } from "lucide-react";
 import { useMemo } from "react";
 import type { Pass } from "./types";
-import { normalizeLaunchUrl } from "./utils";
 import { BarcodeCityCode } from "./BarcodeCityCode";
+import { MatrixCode } from "./MatrixCode";
 import { QrTreeCode } from "./QrTreeCode";
-import { matrixToString } from "./barcode";
 
-type BarcodeEncoding = {
-  data?: string;
+type StoredSymbol = {
+  matrix: string;
+  width: number;
+  height: number;
 };
-type BarcodeRenderTarget = {
-  encodings?: BarcodeEncoding[];
-};
+
+function storedSymbol(pass: Pass): StoredSymbol | null {
+  const width = pass.visualWidth ?? pass.visualSize;
+  const height = pass.visualHeight ?? pass.visualSize;
+  if (!pass.visualMatrix || !width || !height) return null;
+  if (
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(height) ||
+    width < 1 ||
+    height < 1 ||
+    width > 40_000 ||
+    height > 40_000 ||
+    width * height > 40_000 ||
+    pass.visualMatrix.length !== width * height ||
+    !/^[01]+$/.test(pass.visualMatrix)
+  ) {
+    return null;
+  }
+  return { matrix: pass.visualMatrix, width, height };
+}
 
 export function CodeRender({ pass }: { pass: Pass }) {
-  const qrRender = useMemo(() => {
-    if (pass.codeType !== "qr") {
-      return null;
-    }
-    const launchUrl = normalizeLaunchUrl(pass.launchUrl ?? "");
-
-    if (!launchUrl && pass.visualMatrix && pass.visualSize) {
-      return {
-        matrix: pass.visualMatrix,
-        size: pass.visualSize,
-        error: "",
-      };
-    }
-
-    try {
-      const qr = QRCode.create(launchUrl || pass.encodedValue, { errorCorrectionLevel: "M" });
-      return {
-        matrix: matrixToString(qr.modules.data),
-        size: qr.modules.size,
-        error: "",
-      };
-    } catch {
-      return {
-        matrix: "",
-        size: 0,
-        error: "Could not render this QR payload.",
-      };
-    }
-  }, [pass.codeType, pass.encodedValue, pass.launchUrl, pass.visualMatrix, pass.visualSize]);
-
-  const barcodeRender = useMemo(() => {
-    if (pass.codeType !== "barcode") {
-      return null;
-    }
-
-    try {
-      const target: BarcodeRenderTarget = {};
-      JsBarcode(target, pass.encodedValue, {
-        format: "CODE128",
-        displayValue: false,
-        margin: 0,
-        width: 1,
-      });
-      const binary = target.encodings?.map((encoding) => encoding.data ?? "").join("") ?? "";
-
-      if (!/^[01]+$/.test(binary)) {
-        throw new Error("Invalid barcode binary");
-      }
-
-      return {
-        binary,
-        error: "",
-      };
-    } catch {
-      return {
-        binary: "",
-        error: "Could not render this barcode payload.",
-      };
-    }
-  }, [pass.codeType, pass.encodedValue]);
-
-  const renderError = qrRender?.error || barcodeRender?.error;
+  const symbol = useMemo(() => storedSymbol(pass), [pass]);
 
   return (
     <div className="code-frame">
-      {pass.codeType === "qr" && qrRender?.matrix ? (
-        <QrTreeCode matrix={qrRender.matrix} size={qrRender.size} />
-      ) : pass.codeType === "qr" ? (
-        <QrCode size={40} aria-hidden="true" />
-      ) : barcodeRender?.binary ? (
-        <BarcodeCityCode binary={barcodeRender.binary} />
+      {!symbol ? (
+        <div className="code-unavailable">
+          <AlertTriangle size={38} aria-hidden="true" />
+          <strong>Rescan required</strong>
+          <span>This legacy symbol cannot be proven locally, so it will not be shown as scannable.</span>
+        </div>
+      ) : symbol.width === symbol.height ? (
+        <QrTreeCode matrix={symbol.matrix} size={symbol.width} />
+      ) : symbol.height === 1 ? (
+        <BarcodeCityCode binary={symbol.matrix} />
       ) : (
-        <Barcode size={44} aria-hidden="true" />
+        <MatrixCode matrix={symbol.matrix} width={symbol.width} height={symbol.height} />
       )}
-      {renderError ? <p className="form-error">{renderError}</p> : null}
     </div>
   );
 }

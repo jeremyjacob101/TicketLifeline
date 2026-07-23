@@ -228,19 +228,25 @@ function sampleDetectedQrMatrix(
   imageData: ImageData,
   result: BarcodeDetectionResult,
   size: number,
+  sourceQuietModules: number,
 ) {
   const corners = getOrderedQrCorners(result);
   const luminance: number[] = [];
+  const sourceSpan = size + sourceQuietModules * 2;
 
   for (let row = 0; row < size; row++) {
     for (let col = 0; col < size; col++) {
-      const point = interpolateQuad(corners, (col + 0.5) / size, (row + 0.5) / size);
+      const point = interpolateQuad(
+        corners,
+        (sourceQuietModules + col + 0.5) / sourceSpan,
+        (sourceQuietModules + row + 0.5) / sourceSpan,
+      );
       luminance.push(readLuminance(imageData, point.x, point.y));
     }
   }
 
   const threshold = otsuThreshold(luminance);
-  const matrix = luminance.map((value) => (value < threshold ? "1" : "0")).join("");
+  const matrix = luminance.map((value) => (value <= threshold ? "1" : "0")).join("");
   const spread = percentile(luminance, 0.85) - percentile(luminance, 0.15);
 
   return {
@@ -307,22 +313,56 @@ function findMatchingQrMatrix(
   }
 
   const imageData = sourceToImageData(source);
-  const sampledBySize = new Map<number, { matrix: string; confidence: number }>();
+  const sampledBySize = new Map<string, { matrix: string; confidence: number }>();
   let best: MatrixMatch | null = null;
 
   for (const candidate of candidates) {
-    let sampled = sampledBySize.get(candidate.size);
-    if (!sampled) {
-      sampled = sampleDetectedQrMatrix(imageData, result, candidate.size);
-      sampledBySize.set(candidate.size, sampled);
-    }
-    const score = scoreMatrix(candidate.matrix, sampled.matrix, sampled.confidence);
-    if (!best || score > best.score) {
-      best = { ...candidate, score };
+    for (const sourceQuietModules of [0, 4]) {
+      const cacheKey = `${candidate.size}:${sourceQuietModules}`;
+      let sampled = sampledBySize.get(cacheKey);
+      if (!sampled) {
+        sampled = sampleDetectedQrMatrix(imageData, result, candidate.size, sourceQuietModules);
+        sampledBySize.set(cacheKey, sampled);
+      }
+      const score = scoreMatrix(candidate.matrix, sampled.matrix, sampled.confidence);
+      if (!best || score > best.score) {
+        best = { ...candidate, score };
+      }
     }
   }
 
-  return best && best.score >= 0.72 ? best : null;
+  return best;
+}
+
+function renderQrMatrix(matrix: string, size: number) {
+  const quiet = 4;
+  const scale = 10;
+  const canvas = document.createElement("canvas");
+  canvas.width = (size + quiet * 2) * scale;
+  canvas.height = canvas.width;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Could not verify the preserved QR pattern.");
+  context.imageSmoothingEnabled = false;
+  context.fillStyle = "#fff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#000";
+  for (let row = 0; row < size; row++) {
+    for (let column = 0; column < size; column++) {
+      if (matrix[row * size + column] === "1") {
+        context.fillRect((column + quiet) * scale, (row + quiet) * scale, scale, scale);
+      }
+    }
+  }
+  return canvas;
+}
+
+async function verifyQrMatrix(
+  detector: BarcodeDetectorInstance,
+  match: MatrixMatch,
+  payload: string,
+) {
+  const results = await detector.detect(renderQrMatrix(match.matrix, match.size));
+  return results.some((result) => result.format === "qr_code" && result.rawValue === payload);
 }
 
 export async function decodeBarcodeFromImage(file: File): Promise<{
@@ -336,22 +376,30 @@ export async function decodeBarcodeFromImage(file: File): Promise<{
     throw new Error("This browser cannot decode images yet. Paste the payload manually.");
   }
 
+  const requestedFormats: BarcodeDetectionResult["format"][] = [
+    "qr_code",
+    "aztec",
+    "code_128",
+    "code_39",
+    "code_93",
+    "codabar",
+    "data_matrix",
+    "ean_13",
+    "ean_8",
+    "itf",
+    "pdf417",
+    "upc_a",
+    "upc_e",
+  ];
+  const runtimeFormats = await window.BarcodeDetector.getSupportedFormats?.();
+  const formats = runtimeFormats?.length
+    ? requestedFormats.filter((format) => runtimeFormats.includes(format))
+    : requestedFormats;
+  if (!formats.length) {
+    throw new Error("This browser does not expose a supported QR or barcode format.");
+  }
   const detector = new window.BarcodeDetector({
-    formats: [
-      "qr_code",
-      "aztec",
-      "code_128",
-      "code_39",
-      "code_93",
-      "codabar",
-      "data_matrix",
-      "ean_13",
-      "ean_8",
-      "itf",
-      "pdf417",
-      "upc_a",
-      "upc_e",
-    ],
+    formats,
   });
 
   const imageFile = await normalizeImageFile(file);
@@ -367,11 +415,26 @@ export async function decodeBarcodeFromImage(file: File): Promise<{
       ? findMatchingQrMatrix(source, result, result.rawValue)
       : null;
 
+  const matrixMatchesPhoto = !!matrixMatch && matrixMatch.score >= 0.72;
+  const matrixRoundTrips = matrixMatchesPhoto
+    ? await verifyQrMatrix(detector, matrixMatch, result.rawValue)
+    : false;
+  if (!matrixMatch || !matrixMatchesPhoto || !matrixRoundTrips) {
+    const debugDetail = import.meta.env.DEV
+      ? ` [match=${matrixMatch?.score.toFixed(3) ?? "none"}; roundTrip=${matrixRoundTrips}]`
+      : "";
+    throw new Error(
+      result.format === "qr_code"
+        ? `The QR code was read, but its exact pattern could not be verified. Try a clearer image or import it with the iPhone app.${debugDetail}`
+        : `The barcode was read, but this browser cannot preserve its exact bars safely. Import it with the iPhone app instead.${debugDetail}`,
+    );
+  }
+
   return {
     rawValue: result.rawValue,
     format,
     codeType: result.format === "qr_code" ? "qr" : "barcode",
-    visualMatrix: matrixMatch?.matrix ?? "",
-    visualSize: matrixMatch?.size,
+    visualMatrix: matrixMatch.matrix,
+    visualSize: matrixMatch.size,
   };
 }

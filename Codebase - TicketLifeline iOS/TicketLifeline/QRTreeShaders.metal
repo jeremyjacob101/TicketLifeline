@@ -59,16 +59,10 @@ vertex RasterOut qrBlockVertex(
     // Block positions are module indices. Offset by half a module before
     // centering so an odd or even QR matrix is geometrically exact.
     float baseX = (block.position.x + 0.5) * moduleSize - halfGrid;
-    // The web renderer holds its elevation constant while it changes the
-    // module width for larger QR matrices. Keeping vertical geometry out of
-    // moduleScale gives small and dense codes the same tree silhouette.
-    // Use a taller, web-like silhouette for actual tree geometry while the
-    // QR ground itself stays perfectly flat and scannable overhead.
-    float treeElevation = (block.type == 1 || block.type == 5 || block.type == 6) ? 1.36 : 1.0;
-    float baseY = block.baseY * treeElevation;
+    float baseY = block.baseY * uniforms.moduleScale;
     float baseZ = (block.position.y + 0.5) * moduleSize - halfGrid;
     float halfSize = moduleSize * 0.5;
-    float h = block.height * treeElevation;
+    float h = block.height * uniforms.moduleScale;
     bool decorative = block.type >= 5;
     float widthScale = decorative ? (1.0 - uniforms.progress) : 1.0;
     halfSize *= widthScale;
@@ -96,17 +90,18 @@ vertex RasterOut qrBlockVertex(
     float rotatedZ = p.x * sy + p.z * cy;
     float rotatedY = p.y * cx - rotatedZ * sx;
     float depth = p.y * sx + rotatedZ * cx;
-    float viewScale = mix(1.43, 2.1, uniforms.progress);
+    float viewScale = mix(1.6, 2.1, uniforms.progress);
     float scaleX = viewScale / max(uniforms.aspectRatio, 1.0);
     float scaleY = viewScale / max(1.0 / uniforms.aspectRatio, 1.0);
     // The 3D crown is visually top-heavy. Bring that mode down slightly so
     // its actual bounds center in the card, while the flat scan view stays
     // mathematically centered at the origin.
-    float yOffset = mix(-0.090, 0.0, uniforms.progress);
-    out.position = float4(rotatedX * scaleX, (rotatedY + yOffset) * scaleY, depth * 0.01 + 0.5, 1);
+    float yOffset = mix(-0.055, 0.0, uniforms.progress);
+    float rootDepthBias = block.type == 6 ? -0.018 : 0.0;
+    out.position = float4(rotatedX * scaleX, (rotatedY + yOffset) * scaleY, depth * 0.01 + 0.5 + rootDepthBias, 1);
     out.uv = q;
     out.normal = n;
-    out.blockType = float(block.type);
+    out.blockType = float(block.type == 5 ? 1 : block.type == 6 ? 2 : block.type);
     out.col = block.position.x;
     out.row = block.position.y;
     out.layer = block.baseY / blockSize;
@@ -161,19 +156,13 @@ fragment float4 qrBlockFragment(RasterOut in [[stage_in]], constant Uniforms &un
     float3 normal = normalize(in.normal);
     float seed = in.col * 17.3 + in.row * 31.1 + in.layer * 73.7;
     float variation = randomValue(seed);
-    float3 sceneColor = webPalette(type == 6 ? 2 : type, normal, variation);
+    float3 sceneColor = webPalette(type, normal, variation);
 
     // At the top-down end, match the web canvas's scanner-safe flat QR
     // pixels. Blossom towers resolve to the dark-pink flat palette instead
     // of staying #ffd2dc on their top faces.
     if (type == 1) {
         float flatness = smoothstep(0.65, 0.98, uniforms.progress);
-        sceneColor = mix(sceneColor, webPalette(4, normal, variation), flatness);
-    }
-    // Type 6 is the tree-only trunk.  In 2D it becomes the same scanner-safe
-    // dark module as the rest of the QR, never a brown trunk stripe.
-    if (type == 6) {
-        float flatness = smoothstep(0.45, 0.94, uniforms.progress);
         sceneColor = mix(sceneColor, webPalette(4, normal, variation), flatness);
     }
     return float4(sceneColor, 1);
@@ -202,9 +191,9 @@ vertex SimpleOut qrShadowVertex(uint vertexID [[vertex_id]], constant Uniforms &
     float cy = cos(angleY), sy = sin(angleY), cx = cos(angleX), sx = sin(angleX);
     float rotatedX = p.x * cy - p.z * sy, rotatedZ = p.x * sy + p.z * cy;
     float rotatedY = p.y * cx - rotatedZ * sx, depth = p.y * sx + rotatedZ * cx;
-    float viewScale = mix(1.43, 2.1, uniforms.progress);
+    float viewScale = mix(1.6, 2.1, uniforms.progress);
     float scaleX = viewScale / max(uniforms.aspectRatio, 1.0), scaleY = viewScale / max(1.0 / uniforms.aspectRatio, 1.0);
-    out.position = float4(rotatedX * scaleX, (rotatedY + mix(-0.090, 0.0, uniforms.progress)) * scaleY, depth * 0.0 + 0.99, 1);
+    out.position = float4(rotatedX * scaleX, (rotatedY + mix(-0.055, 0.0, uniforms.progress)) * scaleY, depth * 0.0 + 0.99, 1);
     out.uv = q * 0.5 + 0.5;
     return out;
 }

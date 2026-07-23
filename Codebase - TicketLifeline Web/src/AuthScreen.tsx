@@ -1,11 +1,21 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import {
+  BadgeCheck,
   KeyRound,
   LockKeyhole,
+  MailCheck,
   QrCode,
   ShieldCheck,
 } from "lucide-react";
 import { FormEvent, useState } from "react";
+import {
+  authErrorMessage,
+  normalizeEmail,
+  validateConfirmationCode,
+  validatePassword,
+} from "./authValidation";
+
+export type AuthMode = "signIn" | "signUp" | "verify";
 
 export function ShellLoading() {
   return (
@@ -18,26 +28,107 @@ export function ShellLoading() {
   );
 }
 
-export function AuthScreen() {
+export function AuthScreen({
+  initialMode = "signIn",
+  initialEmail = "",
+}: {
+  initialMode?: AuthMode;
+  initialEmail?: string;
+} = {}) {
   const { signIn } = useAuthActions();
-  const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
-  const [username, setUsername] = useState("");
+  const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmationCode, setConfirmationCode] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setNotice("");
     setIsSubmitting(true);
     try {
-      await signIn("password", { username, password, flow: mode });
+      const cleanEmail = normalizeEmail(email);
+      setEmail(cleanEmail);
+      if (mode === "verify") {
+        const code = validateConfirmationCode(confirmationCode);
+        const result = await signIn("password", {
+          email: cleanEmail,
+          code,
+          flow: "email-verification",
+        });
+        if (!result.signingIn) {
+          throw new Error("Could not verify code");
+        }
+        return;
+      }
+
+      validatePassword(password);
+      if (mode === "signUp" && password !== confirmPassword) {
+        throw new Error("Passwords do not match.");
+      }
+      const result = await signIn("password", {
+        email: cleanEmail,
+        password,
+        flow: mode,
+      });
+      if (!result.signingIn) {
+        setMode("verify");
+        setConfirmationCode("");
+        setNotice(
+          mode === "signUp"
+            ? `We sent a 6-digit confirmation code to ${cleanEmail}.`
+            : `This account still needs confirmation. We sent a new code to ${cleanEmail}.`,
+        );
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not sign in.");
+      if (err instanceof Error && err.message === "Passwords do not match.") {
+        setError(err.message);
+      } else {
+        setError(authErrorMessage(err));
+      }
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  async function resendCode() {
+    setError("");
+    setNotice("");
+    setIsSubmitting(true);
+    try {
+      const cleanEmail = normalizeEmail(email);
+      setEmail(cleanEmail);
+      validatePassword(password);
+      const result = await signIn("password", {
+        email: cleanEmail,
+        password,
+        flow: "signIn",
+      });
+      if (!result.signingIn) {
+        setNotice(`A new confirmation code was sent to ${cleanEmail}.`);
+      }
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function changeMode(nextMode: AuthMode) {
+    setMode(nextMode);
+    setPassword("");
+    setConfirmPassword("");
+    setConfirmationCode("");
+    setError("");
+    setNotice("");
+  }
+
+  const isVerification = mode === "verify";
+  const title = mode === "signIn" ? "Sign in" : mode === "signUp" ? "Create account" : "Confirm your email";
 
   return (
     <main className="auth-screen">
@@ -61,50 +152,109 @@ export function AuthScreen() {
 
       <section className="auth-card">
         <div className="auth-card-header">
-          <LockKeyhole size={20} />
+          {isVerification ? <MailCheck size={20} /> : <LockKeyhole size={20} />}
           <div>
-            <h2>{mode === "signIn" ? "Sign in" : "Create account"}</h2>
-            <p>Use a username and password for this first version.</p>
+            <h2>{title}</h2>
+            <p>
+              {isVerification
+                ? "Confirm once to activate your account. Future sign-ins only use email and password."
+                : mode === "signIn"
+                  ? "Open your vault from any browser with your email and password."
+                  : "Use an email you can confirm, then your password works everywhere."}
+            </p>
           </div>
         </div>
         <form onSubmit={handleSubmit} className="auth-form">
           <label>
-            Username
+            Email
             <input
-              type="text"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              autoComplete="username"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              inputMode="email"
+              maxLength={254}
+              readOnly={isVerification}
               required
             />
           </label>
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete={mode === "signIn" ? "current-password" : "new-password"}
-              required
-            />
-          </label>
-          {error ? <p className="form-error">{error}</p> : null}
+          {isVerification ? (
+            <label>
+              6-digit confirmation code
+              <input
+                type="text"
+                value={confirmationCode}
+                onChange={(event) => setConfirmationCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                autoFocus
+                required
+              />
+            </label>
+          ) : (
+            <>
+              <label>
+                Password
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete={mode === "signIn" ? "current-password" : "new-password"}
+                  minLength={8}
+                  maxLength={128}
+                  required
+                />
+                {mode === "signUp" ? <span className="field-hint">8–128 characters.</span> : null}
+              </label>
+              {mode === "signUp" ? (
+                <label>
+                  Confirm password
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    autoComplete="new-password"
+                    minLength={8}
+                    maxLength={128}
+                    required
+                  />
+                </label>
+              ) : null}
+            </>
+          )}
+          {notice ? <p className="form-notice" role="status">{notice}</p> : null}
+          {error ? <p className="form-error" role="alert">{error}</p> : null}
           <button type="submit" className="primary-button" disabled={isSubmitting}>
-            <KeyRound size={16} />
+            {isVerification ? <BadgeCheck size={16} /> : <KeyRound size={16} />}
             {isSubmitting
               ? "Working..."
-              : mode === "signIn"
-                ? "Sign in"
-                : "Create vault"}
+              : isVerification
+                ? "Confirm and sign in"
+                : mode === "signIn"
+                  ? "Sign in"
+                  : "Create vault"}
           </button>
         </form>
-        <button
-          type="button"
-          className="text-button"
-          onClick={() => setMode((value) => (value === "signIn" ? "signUp" : "signIn"))}
-        >
-          {mode === "signIn" ? "Need an account?" : "Already have an account?"}
-        </button>
+        {isVerification ? (
+          <div className="auth-secondary-actions">
+            <button type="button" className="text-button" onClick={() => void resendCode()} disabled={isSubmitting}>
+              Send a new code
+            </button>
+            <button type="button" className="text-button" onClick={() => changeMode("signIn")} disabled={isSubmitting}>
+              Back to sign in
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => changeMode(mode === "signIn" ? "signUp" : "signIn")}
+          >
+            {mode === "signIn" ? "Need an account?" : "Already have an account?"}
+          </button>
+        )}
         <a
           className="privacy-link"
           href="https://github.com/jeremyjacob101/TicketLifeline/blob/main/PRIVACY.md"

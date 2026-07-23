@@ -20,9 +20,12 @@ private struct QRModuleMatrix {
 
     init(code: SavedCode) {
         if let encoded = code.visualMatrix,
-           let sourceSide = code.visualSize,
-            sourceSide > 0,
-           encoded.count == sourceSide * sourceSide {
+           let sourceWidth = code.visualWidth ?? code.visualSize,
+           let sourceHeight = code.visualHeight ?? code.visualSize,
+           sourceWidth == sourceHeight,
+           sourceWidth > 0,
+           encoded.count == sourceWidth * sourceHeight {
+            let sourceSide = sourceWidth
             let source = encoded.map { $0 == "1" }
             let displaySide = min(sourceSide, 41)
             side = displaySide

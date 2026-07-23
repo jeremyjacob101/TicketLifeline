@@ -88,14 +88,8 @@ private struct CodeImportReviewView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                Group {
-                    if code.isBarcode {
-                        BarcodeImage(payload: code.payload)
-                    } else {
-                        QRCodeImage(payload: code.payload)
-                    }
-                }
-                .frame(width: 220, height: 190)
+                DetectedCodeArtPreview(code: code)
+                    .frame(width: 240, height: 220)
 
                 VStack(spacing: 6) {
                     Text(code.isBarcode ? "Barcode found" : "QR code found")
@@ -107,6 +101,12 @@ private struct CodeImportReviewView: View {
                         .lineLimit(3)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
+                }
+
+                if let rawURL = code.inferredLaunchURL, let url = URL(string: rawURL) {
+                    Link(destination: url) {
+                        Label("Open website", systemImage: "safari")
+                    }
                 }
 
                 TextField("Name this code (optional)", text: $label)
@@ -148,7 +148,7 @@ private struct CodeImportReviewView: View {
             try await appState.saveCode(code, label: label)
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = CodeOperationError.userFacingMessage(for: error)
         }
     }
 }

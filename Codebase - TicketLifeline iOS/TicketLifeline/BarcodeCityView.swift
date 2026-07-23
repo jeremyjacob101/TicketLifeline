@@ -6,8 +6,18 @@ import UIKit
 /// A single Metal scene for both states of a Code 128 pass. The exact barcode
 /// modules remain visible from above, then fold down into a street of facades.
 struct BarcodeCityView: UIViewRepresentable {
-    let code: SavedCode
     let isFlat: Bool
+    private let pattern: BarcodePattern
+
+    init(code: SavedCode, isFlat: Bool) {
+        self.isFlat = isFlat
+        pattern = BarcodePattern(code: code)
+    }
+
+    init(code: DetectedCode, isFlat: Bool) {
+        self.isFlat = isFlat
+        pattern = BarcodePattern(code: code)
+    }
 
     final class Coordinator {
         fileprivate var renderer: BarcodeCityMetalRenderer?
@@ -27,7 +37,7 @@ struct BarcodeCityView: UIViewRepresentable {
         view.clearColor = MTLClearColorMake(1, 1, 1, 1)
         if let renderer = BarcodeCityMetalRenderer(
             view: view,
-            pattern: BarcodePattern(payload: code.payload),
+            pattern: pattern,
             initiallyFlat: isFlat
         ) {
             context.coordinator.renderer = renderer
@@ -60,8 +70,26 @@ private struct BarcodePattern {
     let moduleCount: Int
     let runs: [Run]
 
-    init(payload: String) {
-        let modules = Self.modules(payload: payload)
+    init(code: SavedCode) {
+        self.init(
+            encoded: code.visualMatrix,
+            width: code.visualWidth ?? code.visualSize,
+            height: code.visualHeight ?? code.visualSize,
+            payload: code.payload
+        )
+    }
+
+    init(code: DetectedCode) {
+        self.init(
+            encoded: code.visualMatrix,
+            width: code.visualWidth,
+            height: code.visualHeight,
+            payload: code.payload
+        )
+    }
+
+    private init(encoded: String?, width: Int?, height: Int?, payload: String) {
+        let modules = Self.modules(encoded: encoded, width: width, height: height, payload: payload)
         moduleCount = max(modules.count, 1)
         var collected: [Run] = []
         var index = 0
@@ -90,7 +118,23 @@ private struct BarcodePattern {
             : collected
     }
 
-    private static func modules(payload: String) -> [Bool] {
+    private static func modules(encoded: String?, width: Int?, height: Int?, payload: String) -> [Bool] {
+        if let encoded,
+           let width,
+           let height,
+           width > 0,
+           height > 0,
+           encoded.count == width * height {
+            let source = Array(encoded.utf8)
+            if height == 1 {
+                return source.map { $0 == 49 }
+            }
+            return (0..<width).map { column in
+                var dark = 0
+                for row in 0..<height where source[row * width + column] == 49 { dark += 1 }
+                return dark * 2 >= height
+            }
+        }
         let filter = CIFilter.code128BarcodeGenerator()
         filter.message = Data(payload.utf8)
         filter.quietSpace = 8

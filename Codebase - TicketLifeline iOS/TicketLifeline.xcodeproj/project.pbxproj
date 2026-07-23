@@ -66,17 +66,17 @@
 		00FF1A9FE3E065688A627213 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0DB75EC346F7A940600D47B1 /* QRTreeShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = QRTreeShaders.metal; sourceTree = "<group>"; };
 		1AC9F6EC82F7D3E0CB5B124C /* CodeImageDecoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeImageDecoderTests.swift; sourceTree = "<group>"; };
-		2B251920CB8BF06FB09CDD82 /* TicketLifelineTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TicketLifelineTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2B251920CB8BF06FB09CDD82 /* TicketLifelineTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TicketLifelineTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2D0D8274A5DBCC7CF397A2C4 /* BarcodeCityShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = BarcodeCityShaders.metal; sourceTree = "<group>"; };
 		3226219E80B77ECC999152E4 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		37B5A0BF6DB89AD589AC8915 /* TicketLifeline.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TicketLifeline.entitlements; sourceTree = "<group>"; };
 		3B0A4988E6AD8B1F36BC4C4D /* AppLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLinks.swift; sourceTree = "<group>"; };
 		4570BB7E358A740967841A8D /* TicketLifelineShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TicketLifelineShareExtension.entitlements; sourceTree = "<group>"; };
 		4CE2365F00E44F4216BA107D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		54D0E72632CF69EB20139A71 /* TicketLifeline.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TicketLifeline.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		54D0E72632CF69EB20139A71 /* TicketLifeline.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TicketLifeline.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		57ADBF98E2F51E5F823E440D /* CodeArtView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeArtView.swift; sourceTree = "<group>"; };
 		5FBF97F2ADBE38DE907D4418 /* TicketLifelineApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TicketLifelineApp.swift; sourceTree = "<group>"; };
-		604D401B8C730BEC9757DA1C /* TicketLifelineShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TicketLifelineShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		604D401B8C730BEC9757DA1C /* TicketLifelineShareExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TicketLifelineShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6A627D33030F74594E87AAA2 /* ImportCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportCoordinator.swift; sourceTree = "<group>"; };
 		7CC1A00B33B9DD27A214F5BB /* QRCodeImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeImage.swift; sourceTree = "<group>"; };
 		80A17C41BDF5CAD1CAE18DB8 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -221,7 +221,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2660;
+				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					107BFCE0872E6D39F2F7657A = {
 						DevelopmentTeam = UZ7YLA6V9D;
@@ -376,12 +376,11 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CONVEX_URL = "https://ideal-zebra-516.convex.cloud";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = UZ7YLA6V9D;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -397,14 +396,13 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jj.ticketlifeline;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -480,12 +478,11 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CONVEX_URL = "https://ideal-zebra-516.convex.cloud";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = UZ7YLA6V9D;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -495,13 +492,12 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jj.ticketlifeline;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -538,7 +534,7 @@
 					"@executable_path/Frameworks",
 				);
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -555,7 +551,7 @@
 					"@executable_path/Frameworks",
 				);
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};

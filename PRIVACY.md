@@ -1,6 +1,6 @@
 # TicketLifeline Privacy Policy
 
-Effective date: July 15, 2026
+Effective date: July 23, 2026
 
 TicketLifeline is a QR code and barcode vault that lets you save, synchronize, and reopen compact digital copies of codes across the TicketLifeline web and iOS apps. This Privacy Policy explains how TicketLifeline handles information.
 
@@ -8,7 +8,7 @@ TicketLifeline is a QR code and barcode vault that lets you save, synchronize, a
 
 TicketLifeline requires an account so your saved codes can synchronize across devices. We collect and store the following information to provide the service:
 
-- Your chosen username and a securely hashed form of your password.
+- Your email address, its one-time confirmation status, and a securely hashed form of your password.
 - Authentication records and session information needed to keep you signed in.
 - QR code and barcode content you choose to save, including the encoded value and generated visual matrix.
 - Optional information you add to a saved code, such as its title, issuer, event date, notes, launch URL, code type, format, and display color.
@@ -21,7 +21,7 @@ TicketLifeline does not intentionally collect advertising identifiers, precise l
 
 The information described above is used only to provide and protect TicketLifeline’s features, including:
 
-- Creating and authenticating your account.
+- Creating and authenticating your account, including sending a one-time email confirmation code during registration.
 - Synchronizing saved QR codes and barcodes across the web and iOS apps.
 - Displaying, searching, regenerating, and deleting your saved codes.
 - Synchronizing saved-code timestamps, including creation, update, and last-opened activity.
@@ -59,6 +59,8 @@ TicketLifeline does not display advertising and does not use third-party adverti
 TicketLifeline does not sell or rent personal information.
 
 TicketLifeline uses Convex as a service provider for cloud hosting, database storage, and account authentication. Convex processes information only as needed to provide those services on TicketLifeline’s behalf and is subject to its own terms and privacy practices.
+
+TicketLifeline uses Brevo as a transactional email service provider. Brevo processes your email address only as needed to deliver account-confirmation messages. Confirmation codes expire after a short period and are not used for advertising or routine sign-in after your email has been confirmed.
 
 A saved QR code may contain a link to an external website. If you choose to open an external link, that website’s own privacy policy and data practices apply.
 

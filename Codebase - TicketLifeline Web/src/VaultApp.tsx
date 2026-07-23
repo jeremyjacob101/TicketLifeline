@@ -35,9 +35,12 @@ type Draft = {
   codeType: CodeType;
   format: string;
   encodedValue: string;
+  payloadEncoding: "utf8" | "base64";
   launchUrl: string;
   visualMatrix: string;
   visualSize: number | undefined;
+  visualWidth: number | undefined;
+  visualHeight: number | undefined;
   eventDate: string;
   notes: string;
   color: string;
@@ -78,9 +81,12 @@ const emptyDraft: Draft = {
   codeType: "qr",
   format: "QR_CODE",
   encodedValue: "",
+  payloadEncoding: "utf8",
   launchUrl: "",
   visualMatrix: "",
   visualSize: undefined,
+  visualWidth: undefined,
+  visualHeight: undefined,
   eventDate: "",
   notes: "",
   color: accentColors[0],
@@ -152,15 +158,15 @@ export function VaultApp() {
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!draft.encodedValue.trim()) {
+    if (!draft.encodedValue) {
       setDecodeState("error");
       setDecodeMessage("Add a decoded payload or paste the code value.");
       return;
     }
-    const launchUrl = draft.codeType === "qr" ? normalizeLaunchUrl(draft.launchUrl) : "";
-    if (draft.codeType === "qr" && draft.launchUrl.trim() && !launchUrl) {
+    const launchUrl = normalizeLaunchUrl(draft.launchUrl);
+    if (draft.launchUrl.trim() && !launchUrl) {
       setDecodeState("error");
-      setDecodeMessage("Use a valid http:// or https:// URL for camera scanning.");
+      setDecodeMessage("Use a valid HTTP(S) website address.");
       return;
     }
 
@@ -169,10 +175,13 @@ export function VaultApp() {
       issuer: draft.issuer || undefined,
       codeType: draft.codeType,
       format: draft.format || undefined,
-      encodedValue: draft.encodedValue.trim(),
+      encodedValue: draft.encodedValue,
+      payloadEncoding: draft.payloadEncoding === "utf8" ? undefined : draft.payloadEncoding,
       launchUrl: launchUrl || undefined,
       visualMatrix: draft.visualMatrix || undefined,
       visualSize: draft.visualSize,
+      visualWidth: draft.visualWidth,
+      visualHeight: draft.visualHeight,
       eventDate: draft.eventDate || undefined,
       notes: draft.notes || undefined,
       color: draft.color,
@@ -184,8 +193,10 @@ export function VaultApp() {
     setDecodeState("success");
     setDecodeMessage(
       launchUrl
-        ? "Saved the payload. Phone-camera scans will open the URL."
-        : "Saved the payload and compact digital QR pattern.",
+        ? "Saved the original payload, verified symbol, and website link."
+        : draft.visualMatrix
+          ? "Saved the original payload and verified symbol."
+          : "Saved the metadata. Rescan the original before using it as a scannable symbol.",
     );
   }
 
@@ -199,19 +210,21 @@ export function VaultApp() {
     );
     try {
       const result = await decodeBarcodeFromImage(file);
-      const inferredLaunchUrl =
-        result.codeType === "qr" ? inferLaunchUrlFromPayload(result.rawValue) : "";
+      const inferredLaunchUrl = inferLaunchUrlFromPayload(result.rawValue);
       setDraft((current) => ({
         ...current,
         codeType: result.codeType,
         format: result.format,
         encodedValue: result.rawValue,
-        launchUrl: current.launchUrl || inferredLaunchUrl,
+        payloadEncoding: "utf8",
+        launchUrl: inferredLaunchUrl,
         visualMatrix: result.visualMatrix,
         visualSize: result.visualSize,
+        visualWidth: result.visualSize,
+        visualHeight: result.visualSize,
         title: current.title || file.name.replace(/\.[^.]+$/, ""),
       }));
-      const scanMessage = inferredLaunchUrl ? " Found a web URL for camera scanning." : "";
+      const scanMessage = inferredLaunchUrl ? " Found a website link without changing the encoded payload." : "";
       setDecodeState("success");
       setDecodeMessage(
         isHeicImage(file)
@@ -483,17 +496,20 @@ export function VaultApp() {
                 setIsDetailOpen(false);
                 void removePass({ id: selectedPass._id });
               }}
-              onUpdate={(fields) => {
-                void updatePass({
+              onUpdate={async (fields) => {
+                await updatePass({
                   id: selectedPass._id,
                   title: fields.title || "Untitled pass",
                   issuer: fields.issuer || undefined,
                   codeType: selectedPass.codeType,
                   format: selectedPass.format || undefined,
                   encodedValue: selectedPass.encodedValue,
+                  payloadEncoding: selectedPass.payloadEncoding,
                   launchUrl: fields.launchUrl || undefined,
                   visualMatrix: selectedPass.visualMatrix || undefined,
                   visualSize: selectedPass.visualSize,
+                  visualWidth: selectedPass.visualWidth,
+                  visualHeight: selectedPass.visualHeight,
                   eventDate: fields.eventDate || undefined,
                   notes: fields.notes || undefined,
                   color: selectedPass.color ?? "#0f766e",
@@ -560,7 +576,7 @@ function AddPassDialog({ draft, decodeState, decodeMessage, onDraftChange, onFil
             </label>
             <label>
               Type
-              <select value={draft.codeType} onChange={(event) => onDraftChange({ ...draft, codeType: event.target.value as CodeType, format: event.target.value === "qr" ? "QR_CODE" : "CODE_128" })}>
+              <select value={draft.codeType} onChange={(event) => onDraftChange({ ...draft, codeType: event.target.value as CodeType, format: event.target.value === "qr" ? "QR_CODE" : "CODE_128", visualMatrix: "", visualSize: undefined, visualWidth: undefined, visualHeight: undefined })}>
                 <option value="qr">QR code</option>
                 <option value="barcode">Barcode</option>
               </select>
@@ -568,14 +584,12 @@ function AddPassDialog({ draft, decodeState, decodeMessage, onDraftChange, onFil
           </div>
           <label>
             Encoded value
-            <textarea value={draft.encodedValue} onChange={(event) => onDraftChange({ ...draft, encodedValue: event.target.value, launchUrl: draft.launchUrl || inferLaunchUrlFromPayload(event.target.value) })} rows={3} />
+            <textarea value={draft.encodedValue} onChange={(event) => onDraftChange({ ...draft, encodedValue: event.target.value, payloadEncoding: "utf8", launchUrl: inferLaunchUrlFromPayload(event.target.value), visualMatrix: "", visualSize: undefined, visualWidth: undefined, visualHeight: undefined })} rows={3} />
           </label>
-          {draft.codeType === "qr" ? (
-            <label>
-              Opens when scanned
-              <input value={draft.launchUrl} onChange={(event) => onDraftChange({ ...draft, launchUrl: event.target.value })} placeholder="https://example.com/ticket" />
-            </label>
-          ) : null}
+          <label>
+            Website link
+            <input value={draft.launchUrl} onChange={(event) => onDraftChange({ ...draft, launchUrl: event.target.value })} placeholder="https://example.com/ticket" />
+          </label>
           <label>
             Notes
             <input value={draft.notes} onChange={(event) => onDraftChange({ ...draft, notes: event.target.value })} placeholder="Gate, seat, confirmation number" />

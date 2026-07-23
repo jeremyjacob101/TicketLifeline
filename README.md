@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="App version 1.0.0" src="https://img.shields.io/badge/App-1.0.0-0F766E?style=for-the-badge">
+  <img alt="App version 1.0.1" src="https://img.shields.io/badge/App-1.0.1-0F766E?style=for-the-badge">
   <img alt="iOS 17 or newer" src="https://img.shields.io/badge/iOS-17%2B-111827?style=for-the-badge&logo=apple&logoColor=white">
   <img alt="Swift 5" src="https://img.shields.io/badge/Swift-5-F05138?style=for-the-badge&logo=swift&logoColor=white">
   <img alt="React 19.2.6" src="https://img.shields.io/badge/React-19.2.6-0F172A?style=for-the-badge&logo=react&logoColor=61DAFB">
@@ -38,25 +38,26 @@ A ticket should still work when the original email is buried, the screenshot is 
 TicketLifeline is designed to make that recovery path simple:
 
 - scan a QR code with the iPhone camera
-- decode screenshots and photos locally on iOS or in the browser
+- decode screenshots and photos locally on iOS, with verified QR image import in supported browsers
 - save directly from the iOS Share Sheet after taking a screenshot
 - jump straight to photo upload or camera scanning from Home Screen quick actions
 - save QR codes and common barcodes with useful labels and notes
-- regenerate a sharp, scan-ready code instead of preserving a blurry screenshot
+- reconstruct and round-trip verify a sharp symbol matrix instead of preserving a blurry screenshot
 - synchronize one private vault across web and iOS
 - permanently delete the complete account and its associated data from either client
 
 ## Highlights
 
-- Shared username-and-password authentication across web and iOS.
+- Shared email-and-password authentication across web and iOS, with one-time email confirmation during registration.
 - One-year sessions with a rolling three-month inactivity window and automatic token refresh.
 - Per-user Convex data isolation for every pass query and mutation.
 - Local image decoding; original photos and camera frames are never uploaded.
 - Native iOS photo import through the limited system picker, with no full Photo Library permission.
 - One-tap Share Extension imports and Home Screen Upload/Scan quick actions.
 - Responsive web vault with desktop navigation and a compact mobile menu, search, and add-pass flow.
-- QR, Aztec, Data Matrix, PDF417, Code 39/93/128, EAN, UPC, ITF, and Codabar decoding.
-- Compact QR visual-matrix preservation for faithful reconstruction.
+- Runtime-supported Vision symbologies on iOS, including QR/Micro QR, Aztec, Data Matrix, PDF417/MicroPDF417, Code 39/93/128 variants, EAN, UPC, ITF, Codabar, GS1 DataBar variants, and MSI Plessey.
+- Verified matrix preservation with explicit width/height, payload encoding, and safe rescan gating for unprovable legacy records.
+- Browser QR imports are accepted only after the photographed pattern and reconstructed symbol both verify; other browser-imported formats direct users to the iPhone rather than inventing bars.
 - Search across titles, issuers, formats, payloads, links, and notes.
 - Native iOS camera scanning with an explicit camera permission description.
 - QR tree and barcode city visualizations powered by SwiftUI and Metal.
@@ -69,7 +70,7 @@ TicketLifeline is designed to make that recovery path simple:
 TicketLifeline has three connected layers:
 
 1. **Web** — React 19 + TypeScript + Vite.
-2. **iOS** — SwiftUI for iOS 17 and newer, with local Vision decoding, AVFoundation scanning, a Share Extension, Home Screen quick actions, and Metal visualizations.
+2. **iOS** — SwiftUI for iOS 17 and newer, with local Vision decoding, centered VisionKit scanning, a Share Extension, Home Screen quick actions, and Metal visualizations.
 3. **Backend** — Convex queries, mutations, authentication, and synchronized storage shared by both clients.
 
 ```text
@@ -103,6 +104,14 @@ npm run convex:dev
 ```
 
 This creates or connects the Convex development deployment and generates the shared API types.
+
+Email confirmation is delivered through Brevo. Configure the API key on every Convex deployment before allowing registration:
+
+```bash
+npx convex env set BREVO_API_KEY your_brevo_api_key
+```
+
+The default sender is `TicketLifeline <verify@ticketlifeline.link>`. It can be overridden with `AUTH_EMAIL_FROM`, which must use a sender authenticated in Brevo. Registration sends a six-digit code that expires after 15 minutes. Once confirmed, normal sign-in uses only the email address and password and does not send another code.
 
 ### Web App
 
@@ -191,7 +200,7 @@ Local credentials are cleared only after the server confirms deletion.
 
 ## App Store Preparation
 
-- App version: `1.0.0`
+- App version: `1.0.1` (build `2`)
 - Build: `1`
 - Bundle identifier: `com.jj.ticketlifeline`
 - Minimum iOS version: `17.0`
@@ -208,7 +217,7 @@ Before release, upload a signed archive to TestFlight, complete App Privacy resp
 
 ## Current Limitations
 
-- Username/password recovery is not yet available.
+- Password recovery is not yet available; normal sign-in uses the confirmed email address and password.
 - Share Sheet imports intentionally save one selected code per shared image with an automatic title; richer pass metadata editing lives on the web.
 - A live Convex connection is required to read or change the synchronized vault.
 

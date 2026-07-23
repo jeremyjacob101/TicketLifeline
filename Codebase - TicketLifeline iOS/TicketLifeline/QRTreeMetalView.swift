@@ -3,8 +3,18 @@ import MetalKit
 import SwiftUI
 
 struct QRTreeMetalView: UIViewRepresentable {
-    let code: SavedCode
     let isFlat: Bool
+    private let matrix: QRTreeMatrix
+
+    init(code: SavedCode, isFlat: Bool) {
+        self.isFlat = isFlat
+        matrix = QRTreeMatrix(code: code)
+    }
+
+    init(code: DetectedCode, isFlat: Bool) {
+        self.isFlat = isFlat
+        matrix = QRTreeMatrix(code: code)
+    }
 
     final class Coordinator {
         fileprivate var renderer: QRTreeMetalRenderer?
@@ -22,7 +32,7 @@ struct QRTreeMetalView: UIViewRepresentable {
         view.enableSetNeedsDisplay = false
         view.isOpaque = true
         view.backgroundColor = UIColor(white: 0.969, alpha: 1)
-        if let renderer = QRTreeMetalRenderer(view: view, matrix: QRTreeMatrix(code: code), initiallyFlat: isFlat) {
+        if let renderer = QRTreeMetalRenderer(view: view, matrix: matrix, initiallyFlat: isFlat) {
             context.coordinator.renderer = renderer
             view.delegate = renderer
         }
@@ -44,13 +54,33 @@ private struct QRTreeMatrix {
     let values: [Bool]
 
     init(code: SavedCode) {
-        if let encoded = code.visualMatrix,
-           let size = code.visualSize,
-           encoded.count == size * size,
-           size > 0 {
-            side = size
+        self.init(
+            encoded: code.visualMatrix,
+            width: code.visualWidth ?? code.visualSize,
+            height: code.visualHeight ?? code.visualSize,
+            payload: code.payload
+        )
+    }
+
+    init(code: DetectedCode) {
+        self.init(
+            encoded: code.visualMatrix,
+            width: code.visualWidth,
+            height: code.visualHeight,
+            payload: code.payload
+        )
+    }
+
+    private init(encoded: String?, width: Int?, height: Int?, payload: String) {
+        if let encoded,
+           let width,
+           let height,
+           width == height,
+           encoded.count == width * height,
+           width > 0 {
+            side = width
             values = encoded.map { $0 == "1" }
-        } else if let generated = Self.generate(payload: code.payload) {
+        } else if let generated = Self.generate(payload: payload) {
             side = generated.side
             values = generated.values
         } else {
@@ -223,12 +253,17 @@ private final class QRTreeMetalRenderer: NSObject, MTKViewDelegate {
             for column in 0..<side {
                 let dark = matrix.dark(row, column)
                 let distance = hypot(Float(column) - center, Float(row) - center)
-                // The ground always remains a faithful QR surface.  The
-                // physical trunk is added separately below as tree-only
-                // geometry, so it never stains the flat scan view brown.
-                let type: UInt32 = !dark ? 0 : distance >= canopyRadius ? 3 : 4
+                let type: UInt32 = !dark ? 0 : distance < trunkRadius ? 2 : distance >= canopyRadius ? 3 : 4
                 add(column, row, base: 0, height: blockSize, type: type)
             }
+        }
+        // Preserve the original short, camera-facing roots that make the
+        // trunk readable without flattening the whole QR into one pink color.
+        let core = Int(center.rounded(.down))
+        let frontRow = max(0, core - 1)
+        for column in core...min(side - 1, core + 1) {
+            let height = (26 + pseudoRandom(column, frontRow, 89) * 4) * heightScale
+            add(column, frontRow, base: blockSize, height: height, type: 6)
         }
         for row in 0..<side {
             for column in 0..<side {
@@ -237,20 +272,23 @@ private final class QRTreeMetalRenderer: NSObject, MTKViewDelegate {
                 let ornamentalRadius = Float(side) * 0.43
                 let ornamentalFullness = max(0, 1 - distance / ornamentalRadius)
                 let ornamental = !dark && distance < ornamentalRadius && pseudoRandom(column, row, 61) > 0.88 - ornamentalFullness * 0.22
-                // A tree needs a trunk even when a particular QR happens to
-                // have pale modules in its centre.  This central core is art
-                // geometry, not a QR-dependent accident.
-                if distance < trunkRadius {
-                    let height = (68 + pseudoRandom(column, row, 5) * 10) * heightScale
-                    add(column, row, base: blockSize, height: height, type: 6)
+                if !dark && !ornamental { continue }
+
+                if dark && distance < trunkRadius {
+                    let height = (60 + pseudoRandom(column, row, 10) * 8) * heightScale
+                    add(column, row, base: blockSize, height: height, type: 2)
+                    let capBase = (61 + pseudoRandom(column, row, 27) * 5) * heightScale
+                    let capHeight = (18 + pseudoRandom(column, row, 31) * 8) * heightScale
+                    add(column, row, base: capBase, height: capHeight, type: 1)
                     continue
                 }
-                if !dark && !ornamental { continue }
                 if distance < canopyRadius {
                     let fullness = 1 - distance / canopyRadius
+                    let frontTrunkWindow = distance < trunkRadius * 1.35 && Float(row + column) < center * 2 - 0.5
+                    if frontTrunkWindow { continue }
                     if !ornamental && fullness < 0.24 && pseudoRandom(column, row, 29) < 0.34 { continue }
-                    let base = (42 + fullness * 34 + pseudoRandom(column, row, 7) * 10) * heightScale
-                    let height = (12 + fullness * 42 + pseudoRandom(column, row, ornamental ? 43 : 11) * 12) * heightScale
+                    let base = (34 + fullness * 25 + pseudoRandom(column, row, 7) * 10) * heightScale
+                    let height = (7 + fullness * 31 + pseudoRandom(column, row, ornamental ? 43 : 11) * 11) * heightScale
                     add(column, row, base: base, height: height, type: ornamental ? 5 : 1)
                 } else if dark && pseudoRandom(column, row, 13) > 0.36 {
                     let height = (4 + pseudoRandom(column, row, 17) * 5) * heightScale

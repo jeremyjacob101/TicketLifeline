@@ -2,10 +2,10 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { assertVisualMatrix } from "./visualMatrix";
 
 const maxPayloadLength = 20_000;
 const maxLaunchUrlLength = 2_000;
-const maxVisualMatrixLength = 40_000;
 
 async function requireUserId(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
@@ -45,24 +45,6 @@ function normalizeLaunchUrl(value: string | undefined) {
   }
 }
 
-function assertVisualMatrix(value: string | undefined, size: number | undefined) {
-  if (!value && size === undefined) {
-    return;
-  }
-  if (!value || size === undefined) {
-    throw new Error("QR matrix data is incomplete.");
-  }
-  if (!Number.isInteger(size) || size < 21 || size > 177 || (size - 17) % 4 !== 0) {
-    throw new Error("QR matrix size is invalid.");
-  }
-  if (value.length !== size * size || value.length > maxVisualMatrixLength) {
-    throw new Error("This QR matrix is too large to store lightweightly.");
-  }
-  if (!/^[01]+$/.test(value)) {
-    throw new Error("QR matrix data is invalid.");
-  }
-}
-
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -82,9 +64,12 @@ export const create = mutation({
     codeType: v.union(v.literal("qr"), v.literal("barcode")),
     format: v.optional(v.string()),
     encodedValue: v.string(),
+    payloadEncoding: v.optional(v.union(v.literal("utf8"), v.literal("base64"))),
     launchUrl: v.optional(v.string()),
     visualMatrix: v.optional(v.string()),
     visualSize: v.optional(v.number()),
+    visualWidth: v.optional(v.number()),
+    visualHeight: v.optional(v.number()),
     eventDate: v.optional(v.string()),
     notes: v.optional(v.string()),
     color: v.optional(v.string()),
@@ -93,7 +78,7 @@ export const create = mutation({
     const userId = await requireUserId(ctx);
     const now = Date.now();
     assertPayloadSize(args.encodedValue);
-    assertVisualMatrix(args.visualMatrix, args.visualSize);
+    assertVisualMatrix(args.visualMatrix, args.visualSize, args.visualWidth, args.visualHeight);
     const launchUrl = normalizeLaunchUrl(args.launchUrl);
 
     return await ctx.db.insert("passes", {
@@ -103,9 +88,12 @@ export const create = mutation({
       codeType: args.codeType,
       format: args.format?.trim() || undefined,
       encodedValue: args.encodedValue,
+      payloadEncoding: args.payloadEncoding,
       launchUrl,
       visualMatrix: args.visualMatrix,
       visualSize: args.visualSize,
+      visualWidth: args.visualWidth,
+      visualHeight: args.visualHeight,
       eventDate: args.eventDate || undefined,
       notes: args.notes?.trim() || undefined,
       color: args.color,
@@ -123,9 +111,12 @@ export const update = mutation({
     codeType: v.union(v.literal("qr"), v.literal("barcode")),
     format: v.optional(v.string()),
     encodedValue: v.string(),
+    payloadEncoding: v.optional(v.union(v.literal("utf8"), v.literal("base64"))),
     launchUrl: v.optional(v.string()),
     visualMatrix: v.optional(v.string()),
     visualSize: v.optional(v.number()),
+    visualWidth: v.optional(v.number()),
+    visualHeight: v.optional(v.number()),
     eventDate: v.optional(v.string()),
     notes: v.optional(v.string()),
     color: v.optional(v.string()),
@@ -137,7 +128,7 @@ export const update = mutation({
       throw new Error("Pass not found");
     }
     assertPayloadSize(args.encodedValue);
-    assertVisualMatrix(args.visualMatrix, args.visualSize);
+    assertVisualMatrix(args.visualMatrix, args.visualSize, args.visualWidth, args.visualHeight);
     const launchUrl = normalizeLaunchUrl(args.launchUrl);
 
     await ctx.db.patch(args.id, {
@@ -146,9 +137,12 @@ export const update = mutation({
       codeType: args.codeType,
       format: args.format?.trim() || undefined,
       encodedValue: args.encodedValue,
+      payloadEncoding: args.payloadEncoding,
       launchUrl,
       visualMatrix: args.visualMatrix,
       visualSize: args.visualSize,
+      visualWidth: args.visualWidth,
+      visualHeight: args.visualHeight,
       eventDate: args.eventDate || undefined,
       notes: args.notes?.trim() || undefined,
       color: args.color,

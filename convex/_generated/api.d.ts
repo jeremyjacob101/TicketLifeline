@@ -9,11 +9,13 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as emailVerification from "../emailVerification.js";
 import type * as http from "../http.js";
 import type * as passes from "../passes.js";
 import type * as sessionMaintenance from "../sessionMaintenance.js";
 import type * as sessionPolicy from "../sessionPolicy.js";
 import type * as users from "../users.js";
+import type * as visualMatrix from "../visualMatrix.js";
 
 import type {
   ApiFromModules,
@@ -23,11 +25,13 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  emailVerification: typeof emailVerification;
   http: typeof http;
   passes: typeof passes;
   sessionMaintenance: typeof sessionMaintenance;
   sessionPolicy: typeof sessionPolicy;
   users: typeof users;
+  visualMatrix: typeof visualMatrix;
 }>;
 
 /**
