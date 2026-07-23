@@ -136,6 +136,46 @@ final class CodeImageDecoderTests: XCTestCase {
         XCTAssertEqual(pass.visualHeight, 23)
     }
 
+    func testTreeShapeStaysTallAndDomedAcrossEveryQRVersion() {
+        for version in 1...40 {
+            let side = 17 + version * 4
+            let profile = QRTreeShapeProfile(side: side)
+            let center = profile.canopyColumn(at: 0, baseNoise: 0.5, topNoise: 0.5)
+            let rim = profile.canopyColumn(
+                at: profile.canopyRadius * 0.98,
+                baseNoise: 0.5,
+                topNoise: 0.5
+            )
+
+            XCTAssertEqual(profile.canopyRadius / Float(side), 0.47, accuracy: 0.0001)
+            XCTAssertGreaterThan(center.topModules, rim.topModules + Float(side) * 0.25)
+            XCTAssertGreaterThan(center.heightModules, rim.heightModules)
+            XCTAssertLessThanOrEqual(center.heightModules, Float(side) * 0.09)
+            XCTAssertLessThanOrEqual(rim.heightModules, Float(side) * 0.06)
+            XCTAssertGreaterThan(1 + profile.trunkHeightModules, center.baseModules)
+            XCTAssertLessThan(1 + profile.trunkHeightModules, center.topModules)
+            XCTAssertGreaterThanOrEqual(profile.edgeRetention(at: profile.canopyRadius), 0)
+            XCTAssertLessThanOrEqual(profile.edgeRetention(at: profile.canopyRadius), 1)
+            XCTAssertGreaterThanOrEqual(profile.ornamentalProbability(at: 0), 0)
+            XCTAssertLessThanOrEqual(profile.ornamentalProbability(at: 0), 1)
+        }
+    }
+
+    func testTreeShapeSupportsPreservedBorderedMatrixSizes() {
+        for side in [23, 27, 31, 179] {
+            let profile = QRTreeShapeProfile(side: side)
+            let column = profile.canopyColumn(
+                at: profile.canopyRadius * 0.5,
+                baseNoise: -1,
+                topNoise: 2
+            )
+
+            XCTAssertGreaterThan(column.baseModules, 0)
+            XCTAssertGreaterThan(column.heightModules, 0)
+            XCTAssertLessThan(profile.trunkWidthModules, Float(side))
+        }
+    }
+
     func testQuietBorderTrimmingDoesNotRemoveAsymmetricLightEdges() {
         let matrix = BinaryCodeMatrix(
             bits: "001" + "011" + "001",

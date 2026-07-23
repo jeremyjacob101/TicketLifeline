@@ -14,7 +14,8 @@
     "convex:codegen": "convex codegen",
     "convex:typecheck": "tsc -p convex/tsconfig.json",
     "test:auth": "node --test tests/emailVerification.test.ts tests/authValidation.test.ts",
-    "test:matrix": "node --test tests/visualMatrix.test.ts"
+    "test:matrix": "node --test tests/visualMatrix.test.ts",
+    "test:roles": "node --test tests/roles.test.ts"
   },
   "dependencies": {
     "@convex-dev/auth": "^0.0.92",

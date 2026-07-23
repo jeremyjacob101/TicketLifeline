@@ -45,7 +45,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       profile(params) {
         requireCodeForVerificationFlow(params.flow, params.code);
         const email = normalizeAndValidateEmail(params.email);
-        return { email };
+        return { email, role: "user" as const };
       },
       validatePasswordRequirements,
       verify: emailVerification,

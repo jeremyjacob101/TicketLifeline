@@ -1,5 +1,14 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import { publicAccountProfile, requireCurrentUser } from "./authorization";
+
+export const me = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireCurrentUser(ctx);
+    return publicAccountProfile(user);
+  },
+});
 
 export const deleteAccount = mutation({
   args: {},

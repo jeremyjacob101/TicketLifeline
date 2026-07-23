@@ -113,6 +113,19 @@ npx convex env set BREVO_API_KEY your_brevo_api_key
 
 The default sender is `TicketLifeline <verify@ticketlifeline.link>`. It can be overridden with `AUTH_EMAIL_FROM`, which must use a sender authenticated in Brevo. Registration sends a six-digit code that expires after 15 minutes. Once confirmed, normal sign-in uses only the email address and password and does not send another code.
 
+### Admin Authorization
+
+Users have a server-controlled `user` or `admin` role. Missing roles are treated as `user` for backward compatibility. New accounts are created as `user`, and client code cannot change roles.
+
+Promote or demote an account from a trusted terminal:
+
+```bash
+npx convex run admin:setRoleByEmail '{"email":"person@example.com","role":"admin"}'
+npx convex run admin:setRoleByEmail '{"email":"person@example.com","role":"user"}'
+```
+
+Admin-only Convex functions must call `requireAdmin(ctx)` from `convex/authorization.ts` before reading or changing protected data. Use `users:me` when a client needs to conditionally display admin UI; the backend check remains mandatory.
+
 ### Web App
 
 ```bash

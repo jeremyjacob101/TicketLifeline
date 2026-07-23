@@ -61,26 +61,30 @@ vertex RasterOut qrBlockVertex(
     float baseX = (block.position.x + 0.5) * moduleSize - halfGrid;
     float baseY = block.baseY * uniforms.moduleScale;
     float baseZ = (block.position.y + 0.5) * moduleSize - halfGrid;
-    float halfSize = moduleSize * 0.5;
-    float h = block.height * uniforms.moduleScale;
     bool decorative = block.type >= 5;
+    float treeGeometryWidth = max(block.position.z, 0.01);
+    float geometryWidth = decorative
+        ? treeGeometryWidth
+        : mix(treeGeometryWidth, 1.0, uniforms.progress);
+    float halfSize = moduleSize * geometryWidth * 0.5;
+    float h = block.height * uniforms.moduleScale;
     float widthScale = decorative ? (1.0 - uniforms.progress) : 1.0;
     halfSize *= widthScale;
     float3 p = 0;
     float3 n = 0;
 
     if (face == 0) {
-        p = float3(baseX + (q.x - 0.5) * moduleSize * widthScale, baseY + h * widthScale, baseZ + (q.y - 0.5) * moduleSize * widthScale); n = float3(0, 1, 0);
+        p = float3(baseX + (q.x - 0.5) * moduleSize * geometryWidth * widthScale, baseY + h * widthScale, baseZ + (q.y - 0.5) * moduleSize * geometryWidth * widthScale); n = float3(0, 1, 0);
     } else if (face == 1) {
-        p = float3(baseX + (q.x - 0.5) * moduleSize * widthScale, baseY, baseZ + (0.5 - q.y) * moduleSize * widthScale); n = float3(0, -1, 0);
+        p = float3(baseX + (q.x - 0.5) * moduleSize * geometryWidth * widthScale, baseY, baseZ + (0.5 - q.y) * moduleSize * geometryWidth * widthScale); n = float3(0, -1, 0);
     } else if (face == 2) {
-        p = float3(baseX + (q.x - 0.5) * moduleSize * widthScale, baseY + q.y * h * widthScale, baseZ + halfSize); n = float3(0, 0, 1);
+        p = float3(baseX + (q.x - 0.5) * moduleSize * geometryWidth * widthScale, baseY + q.y * h * widthScale, baseZ + halfSize); n = float3(0, 0, 1);
     } else if (face == 3) {
-        p = float3(baseX + (0.5 - q.x) * moduleSize * widthScale, baseY + q.y * h * widthScale, baseZ - halfSize); n = float3(0, 0, -1);
+        p = float3(baseX + (0.5 - q.x) * moduleSize * geometryWidth * widthScale, baseY + q.y * h * widthScale, baseZ - halfSize); n = float3(0, 0, -1);
     } else if (face == 4) {
-        p = float3(baseX + halfSize, baseY + q.y * h * widthScale, baseZ + (q.x - 0.5) * moduleSize * widthScale); n = float3(1, 0, 0);
+        p = float3(baseX + halfSize, baseY + q.y * h * widthScale, baseZ + (q.x - 0.5) * moduleSize * geometryWidth * widthScale); n = float3(1, 0, 0);
     } else {
-        p = float3(baseX - halfSize, baseY + q.y * h * widthScale, baseZ + (0.5 - q.x) * moduleSize * widthScale); n = float3(-1, 0, 0);
+        p = float3(baseX - halfSize, baseY + q.y * h * widthScale, baseZ + (0.5 - q.x) * moduleSize * geometryWidth * widthScale); n = float3(-1, 0, 0);
     }
 
     float angleY = mix(isoAngleY, flatAngleY, uniforms.progress);
@@ -96,9 +100,8 @@ vertex RasterOut qrBlockVertex(
     // The 3D crown is visually top-heavy. Bring that mode down slightly so
     // its actual bounds center in the card, while the flat scan view stays
     // mathematically centered at the origin.
-    float yOffset = mix(-0.055, 0.0, uniforms.progress);
-    float rootDepthBias = block.type == 6 ? -0.018 : 0.0;
-    out.position = float4(rotatedX * scaleX, (rotatedY + yOffset) * scaleY, depth * 0.01 + 0.5 + rootDepthBias, 1);
+    float yOffset = mix(-0.185, 0.0, uniforms.progress);
+    out.position = float4(rotatedX * scaleX, (rotatedY + yOffset) * scaleY, depth * 0.01 + 0.5, 1);
     out.uv = q;
     out.normal = n;
     out.blockType = float(block.type == 5 ? 1 : block.type == 6 ? 2 : block.type);
@@ -193,7 +196,7 @@ vertex SimpleOut qrShadowVertex(uint vertexID [[vertex_id]], constant Uniforms &
     float rotatedY = p.y * cx - rotatedZ * sx, depth = p.y * sx + rotatedZ * cx;
     float viewScale = mix(1.6, 2.1, uniforms.progress);
     float scaleX = viewScale / max(uniforms.aspectRatio, 1.0), scaleY = viewScale / max(1.0 / uniforms.aspectRatio, 1.0);
-    out.position = float4(rotatedX * scaleX, (rotatedY + mix(-0.055, 0.0, uniforms.progress)) * scaleY, depth * 0.0 + 0.99, 1);
+    out.position = float4(rotatedX * scaleX, (rotatedY + mix(-0.185, 0.0, uniforms.progress)) * scaleY, depth * 0.0 + 0.99, 1);
     out.uv = q * 0.5 + 0.5;
     return out;
 }

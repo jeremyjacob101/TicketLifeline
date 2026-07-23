@@ -121,6 +121,72 @@ private struct GPUUniforms {
     var padding = SIMD2<Float>(repeating: 0)
 }
 
+struct QRTreeCanopyColumn {
+    let baseModules: Float
+    let heightModules: Float
+
+    var topModules: Float { baseModules + heightModules }
+}
+
+/// Matrix-relative dimensions keep the tree silhouette stable for every QR
+/// version instead of making larger matrices produce progressively flatter
+/// trees. Values are expressed in QR-module units and converted to Metal world
+/// units only when the GPU blocks are created.
+struct QRTreeShapeProfile {
+    let side: Float
+
+    init(side: Int) {
+        self.side = max(1, Float(side))
+    }
+
+    var canopyRadius: Float { side * 0.47 }
+    var ornamentalRadius: Float { side * 0.445 }
+    var leafWidthModules: Float { 0.74 }
+    var trunkWidthModules: Float { max(1.25, side * 0.055) }
+    var trunkHeightModules: Float { side * 0.50 }
+
+    func normalizedRadius(for distance: Float) -> Float {
+        min(max(distance / canopyRadius, 0), 1)
+    }
+
+    func domeAmount(at distance: Float) -> Float {
+        let radius = normalizedRadius(for: distance)
+        return max(0, 1 - radius * radius)
+    }
+
+    func ornamentalProbability(at distance: Float) -> Float {
+        0.30 + domeAmount(at: distance) * 0.30
+    }
+
+    func edgeRetention(at distance: Float) -> Float {
+        let radius = normalizedRadius(for: distance)
+        let interiorAmount = min(max((1 - radius) / 0.18, 0), 1)
+        return 0.22 + interiorAmount * 0.78
+    }
+
+    func canopyColumn(
+        at distance: Float,
+        baseNoise: Float,
+        topNoise: Float
+    ) -> QRTreeCanopyColumn {
+        let dome = domeAmount(at: distance)
+        let clampedBaseNoise = min(max(baseNoise, 0), 1)
+        let clampedTopNoise = min(max(topNoise, 0), 1)
+
+        // Move short leaf blocks along the dome instead of stretching every
+        // leaf from the canopy underside to its top. This preserves the round
+        // silhouette without the long vertical curtains visible at the rim.
+        let base = side * (0.23 + dome * 0.255)
+            + (clampedBaseNoise - 0.5) * side * 0.02
+        let height = side * (0.044 + dome * 0.036)
+            + clampedTopNoise * side * 0.012
+        return QRTreeCanopyColumn(
+            baseModules: base,
+            heightModules: max(side * 0.04, height)
+        )
+    }
+}
+
 private final class QRTreeMetalRenderer: NSObject, MTKViewDelegate {
     private let queue: MTLCommandQueue
     private let blocksPipeline: MTLRenderPipelineState
@@ -242,57 +308,109 @@ private final class QRTreeMetalRenderer: NSObject, MTKViewDelegate {
         let side = matrix.side
         let center = Float(side - 1) / 2
         let blockSize: Float = 0.0245
-        let heightScale = blockSize / 7.5
-        let trunkRadius = max(1.8, Float(side) * 0.07)
-        let canopyRadius = Float(side) * 0.47
+        let profile = QRTreeShapeProfile(side: side)
         var blocks: [GPUBlock] = []
-        func add(_ column: Int, _ row: Int, base: Float, height: Float, type: UInt32) {
-            blocks.append(GPUBlock(position: SIMD4(Float(column), Float(row), 0, 0), height: height, baseY: base, type: type))
+        func add(
+            _ column: Float,
+            _ row: Float,
+            baseModules: Float,
+            heightModules: Float,
+            type: UInt32,
+            widthModules: Float = 1
+        ) {
+            blocks.append(
+                GPUBlock(
+                    position: SIMD4(column, row, widthModules, 0),
+                    height: heightModules * blockSize,
+                    baseY: baseModules * blockSize,
+                    type: type
+                )
+            )
         }
+
+        // The complete ground matrix is never altered by the decorative tree,
+        // preserving the exact flat QR endpoint for scanning.
         for row in 0..<side {
             for column in 0..<side {
                 let dark = matrix.dark(row, column)
                 let distance = hypot(Float(column) - center, Float(row) - center)
-                let type: UInt32 = !dark ? 0 : distance < trunkRadius ? 2 : distance >= canopyRadius ? 3 : 4
-                add(column, row, base: 0, height: blockSize, type: type)
+                let trunkFootprint = profile.trunkWidthModules * 0.5
+                let type: UInt32
+                if !dark {
+                    type = 0
+                } else if distance < trunkFootprint {
+                    type = 2
+                } else if distance >= profile.canopyRadius {
+                    type = 3
+                } else {
+                    type = 4
+                }
+                add(
+                    Float(column),
+                    Float(row),
+                    baseModules: 0,
+                    heightModules: 1,
+                    type: type
+                )
             }
         }
-        // Preserve the original short, camera-facing roots that make the
-        // trunk readable without flattening the whole QR into one pink color.
-        let core = Int(center.rounded(.down))
-        let frontRow = max(0, core - 1)
-        for column in core...min(side - 1, core + 1) {
-            let height = (26 + pseudoRandom(column, frontRow, 89) * 4) * heightScale
-            add(column, frontRow, base: blockSize, height: height, type: 6)
-        }
+
+        // One continuous, matrix-independent trunk works even when the QR's
+        // center modules are light. It is decorative (type 6), so it contracts
+        // completely out of the scannable flat view.
+        add(
+            center,
+            center,
+            baseModules: 1,
+            heightModules: profile.trunkHeightModules,
+            type: 6,
+            widthModules: profile.trunkWidthModules
+        )
+
         for row in 0..<side {
             for column in 0..<side {
                 let dark = matrix.dark(row, column)
                 let distance = hypot(Float(column) - center, Float(row) - center)
-                let ornamentalRadius = Float(side) * 0.43
-                let ornamentalFullness = max(0, 1 - distance / ornamentalRadius)
-                let ornamental = !dark && distance < ornamentalRadius && pseudoRandom(column, row, 61) > 0.88 - ornamentalFullness * 0.22
-                if !dark && !ornamental { continue }
+                if distance < profile.canopyRadius {
+                    let coversTrunk = distance < profile.trunkWidthModules * 0.9
+                    let ornamental = !dark
+                        && distance < profile.ornamentalRadius
+                        && (
+                            coversTrunk
+                                || pseudoRandom(column, row, 61)
+                                    < profile.ornamentalProbability(at: distance)
+                        )
+                    guard dark || ornamental else { continue }
 
-                if dark && distance < trunkRadius {
-                    let height = (60 + pseudoRandom(column, row, 10) * 8) * heightScale
-                    add(column, row, base: blockSize, height: height, type: 2)
-                    let capBase = (61 + pseudoRandom(column, row, 27) * 5) * heightScale
-                    let capHeight = (18 + pseudoRandom(column, row, 31) * 8) * heightScale
-                    add(column, row, base: capBase, height: capHeight, type: 1)
-                    continue
-                }
-                if distance < canopyRadius {
-                    let fullness = 1 - distance / canopyRadius
-                    let frontTrunkWindow = distance < trunkRadius * 1.35 && Float(row + column) < center * 2 - 0.5
-                    if frontTrunkWindow { continue }
-                    if !ornamental && fullness < 0.24 && pseudoRandom(column, row, 29) < 0.34 { continue }
-                    let base = (34 + fullness * 25 + pseudoRandom(column, row, 7) * 10) * heightScale
-                    let height = (7 + fullness * 31 + pseudoRandom(column, row, ornamental ? 43 : 11) * 11) * heightScale
-                    add(column, row, base: base, height: height, type: ornamental ? 5 : 1)
-                } else if dark && pseudoRandom(column, row, 13) > 0.36 {
-                    let height = (4 + pseudoRandom(column, row, 17) * 5) * heightScale
-                    add(column, row, base: blockSize, height: height, type: 3)
+                    // Thin only the outside rim. This keeps an organic edge
+                    // while guaranteeing a dense center that fully caps the
+                    // trunk instead of cutting a sight line through the crown.
+                    if !coversTrunk,
+                       pseudoRandom(column, row, 29) > profile.edgeRetention(at: distance) {
+                        continue
+                    }
+
+                    let columnShape = profile.canopyColumn(
+                        at: distance,
+                        baseNoise: pseudoRandom(column, row, 7),
+                        topNoise: pseudoRandom(column, row, ornamental ? 43 : 11)
+                    )
+                    add(
+                        Float(column),
+                        Float(row),
+                        baseModules: columnShape.baseModules,
+                        heightModules: columnShape.heightModules,
+                        type: ornamental ? 5 : 1,
+                        widthModules: profile.leafWidthModules
+                    )
+                } else if dark, pseudoRandom(column, row, 13) > 0.36 {
+                    add(
+                        Float(column),
+                        Float(row),
+                        baseModules: 1,
+                        heightModules: 0.55 + pseudoRandom(column, row, 17) * 0.65,
+                        type: 3
+                    )
                 }
             }
         }

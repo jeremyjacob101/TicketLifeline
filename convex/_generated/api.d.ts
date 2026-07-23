@@ -8,10 +8,13 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
+import type * as authorization from "../authorization.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as http from "../http.js";
 import type * as passes from "../passes.js";
+import type * as roles from "../roles.js";
 import type * as sessionMaintenance from "../sessionMaintenance.js";
 import type * as sessionPolicy from "../sessionPolicy.js";
 import type * as users from "../users.js";
@@ -24,10 +27,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   auth: typeof auth;
+  authorization: typeof authorization;
   emailVerification: typeof emailVerification;
   http: typeof http;
   passes: typeof passes;
+  roles: typeof roles;
   sessionMaintenance: typeof sessionMaintenance;
   sessionPolicy: typeof sessionPolicy;
   users: typeof users;
